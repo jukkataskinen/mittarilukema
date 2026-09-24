@@ -131,11 +131,11 @@ describe("Joutsan lasku", () => {
     expect(u?.m3).toBe(8200);
   });
 
-  it("negatiivista kulutusta ei laskuteta hyvityksenä", () => {
+  it("negatiivinen kulutus hyvitetään kuten vanhassa järjestelmässä, huomautuksella", () => {
     const r = calculateBill(base({ meters: [{ ...base().meters[0], readings: [{ readOn: "2025-09-30", reading: 1895 }, { readOn: "2026-03-31", reading: 1893 }] }] }));
-    expect(r.waterM3).toBe(0);
-    expect(r.lines.every((l) => l.net >= 0)).toBe(true);
-    expect(r.issues.join()).toMatch(/pienempi kuin edellinen/);
+    expect(r.waterM3).toBe(-2);
+    expect(r.lines.find((l) => l.description === "Vesi")?.net).toBe(-1.9);
+    expect(r.issues.join()).toMatch(/pienempi kuin edellinen.*Tarkista/);
   });
 
   it("puuttuva perusmaksuluokka on huomautus", () => {

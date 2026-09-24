@@ -202,10 +202,11 @@ export function calculateBill(input: BillingInput): BillingResult {
     if (!u) continue;
     const name = m.meterNumber ? `Mittari ${m.meterNumber}` : "Mittari";
     if (!u.to) issues.push(`${name}: lukema puuttuu jakson lopusta.`);
-    // Negatiivista kulutusta ei laskuteta hyvityksenä: lukema on virheellinen tai mittari vaihdettu kirjaamatta.
-    if (u.m3 < 0) issues.push(`${name}: lukema on pienempi kuin edellinen (${u.m3} m³), kulutukseksi laskettu 0.`);
+    // Negatiivinen kulutus vähennetään (hyvitys), kuten vanhassa järjestelmässä: edellinen lukema oli
+    // liian suuri (arvio tai näppäilyvirhe). Voi olla myös kirjaamaton mittarinvaihto, joten tarkistettava.
+    if (u.m3 < 0) issues.push(`${name}: lukema on pienempi kuin edellinen (${u.m3} m³), erotus vähennetty kulutuksesta. Tarkista.`);
     usage.push({ meterId: m.id, connectionKind: conn.kind, from: u.from, to: u.to, m3: u.m3 });
-    metered += Math.max(0, u.m3);
+    metered += u.m3;
   }
   if (measuringKind && usage.length === 0) issues.push("Kiinteistöllä ei ole mittaria jaksolla.");
   }
