@@ -44,7 +44,7 @@ export function StaffShell({ ctx, children }: { ctx: StaffContext; children: Rea
           <input
             id="nav-search"
             name="q"
-            placeholder="Hae osoite tai mittari"
+            placeholder="Hae osoite, Unes tai mittari"
             className="min-h-10 w-full rounded-xl border border-line bg-cloud/60 px-3 text-sm placeholder:text-ink/45 focus:border-sky focus:bg-paper focus:outline-none"
           />
         </form>

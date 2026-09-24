@@ -72,6 +72,7 @@ export function listProperties(tx: Sql, orgId: string, opts: { q?: string; areaI
              or lower(p.street_address) like $3
              or lower(coalesce(p.city, '')) like $3
              or lower(coalesce(p.property_code, '')) like $3
+             or coalesce(p.legacy_id, '') like $3
              or exists (select 1 from ml_meters m join ml_connections k on k.id = m.connection_id
                          where k.property_id = p.id and lower(coalesce(m.meter_number, '')) like $3)
              or exists (select 1 from ml_contracts c join ml_customers cu on cu.id = c.customer_id

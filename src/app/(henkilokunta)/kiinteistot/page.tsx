@@ -29,7 +29,7 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
         <label htmlFor="q" className="sr-only">
           Hae
         </label>
-        <Input id="q" name="q" defaultValue={sp.q ?? ""} placeholder="Osoite, mittarinumero tai asiakas" className="max-w-sm" />
+        <Input id="q" name="q" defaultValue={sp.q ?? ""} placeholder="Osoite, Unes, mittarinumero tai asiakas" className="max-w-sm" />
         {areas.length > 0 ? (
           <>
             <label htmlFor="alue" className="sr-only">

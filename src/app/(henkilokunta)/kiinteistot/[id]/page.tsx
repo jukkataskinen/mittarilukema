@@ -9,7 +9,7 @@ import { BILLING_METHOD, CONNECTION_KIND, CONTRACT_ROLE, READ_METHOD } from "@/l
 import { formatDate, formatNumber, isoDateHelsinki } from "@/lib/format";
 import { ReadingsTable } from "../../lukemat/ReadingsTable";
 import { addReadingAction } from "../../lukemat/actions";
-import { addConnectionAction, addContractAction, addMeterAction, disconnectAction, endContractAction } from "../actions";
+import { addConnectionAction, addContractAction, addMeterAction, disconnectAction, endContractAction, updateMeterAction } from "../actions";
 
 export const metadata = { title: "Kiinteistö" };
 
@@ -149,6 +149,34 @@ export default async function PropertyPage({
                         <Button>Kirjaa lukema</Button>
                       </div>
                     </form>
+                  ) : null}
+                  {canEdit ? (
+                    <details className="mt-4 border-t border-line pt-3">
+                      <summary className="cursor-pointer text-sm font-semibold text-sky">Muokkaa mittarin tietoja</summary>
+                      <form action={updateMeterAction} className="mt-3 grid grid-cols-2 gap-3">
+                        <input type="hidden" name="propertyId" value={id} />
+                        <input type="hidden" name="meterId" value={m.id} />
+                        <Field label="Mittarinumero" htmlFor={`mn-${m.id}`}>
+                          <Input id={`mn-${m.id}`} name="meterNumber" defaultValue={m.meter_number ?? ""} autoComplete="off" />
+                        </Field>
+                        <Field label="Lukutapa" htmlFor={`rm-${m.id}`}>
+                          <Select id={`rm-${m.id}`} name="readMethod" defaultValue="auto">
+                            <option value="auto">Mittarinumerosta</option>
+                            <option value="mechanical">{READ_METHOD.mechanical}</option>
+                            <option value="remote">{READ_METHOD.remote}</option>
+                          </Select>
+                        </Field>
+                        <Field label="Sijainti" htmlFor={`loc-${m.id}`}>
+                          <Input id={`loc-${m.id}`} name="location" defaultValue={m.location ?? ""} />
+                        </Field>
+                        <Field label="Kerroin" htmlFor={`mul-${m.id}`}>
+                          <Input id={`mul-${m.id}`} name="multiplier" inputMode="decimal" defaultValue={m.multiplier.replace(".", ",").replace(/,000$/, "")} />
+                        </Field>
+                        <div className="col-span-2">
+                          <Button variant="secondary">Tallenna mittari</Button>
+                        </div>
+                      </form>
+                    </details>
                   ) : null}
                 </Panel>
               );

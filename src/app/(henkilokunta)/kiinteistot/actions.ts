@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/current-user";
 import { emptyToNull, fail, isExclusionViolation, isUniqueViolation, parseForm } from "@/lib/forms";
-import { parseReading } from "@/lib/readings/checks";
+import { meterReadMethod, parseReading } from "@/lib/readings/checks";
 import { normalizePropertyCode } from "@/lib/validation/finnish";
 import { audit } from "@/lib/audit";
 
@@ -216,6 +216,40 @@ export async function disconnectAction(formData: FormData) {
     );
     if (rows.length === 0) fail(back, "Päivä ei voi olla ennen liittymispäivää.");
     await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "connection.end", entity: "ml_connections", entityId: input.data.connectionId });
+  });
+  revalidatePath(back);
+  redirect(back);
+}
+
+const meterEditSchema = z.object({
+  propertyId: z.string().uuid(),
+  meterId: z.string().uuid(),
+  meterNumber: optionalText(60),
+  readMethod: z.enum(["auto", "remote", "mechanical"]),
+  location: optionalText(200),
+  multiplier: z.string().min(1),
+});
+
+/**
+ * Mittarin tiedot. Lukutapa "auto" päätellään mittarinumerosta (Joutsa:
+ * kolmemerkkinen = vanha mekaaninen, pidempi = etäluettava, DECISIONS 25.9.2026).
+ */
+export async function updateMeterAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const input = parseForm(meterEditSchema, formData, "/kiinteistot");
+  const back = `/kiinteistot/${input.propertyId}`;
+  const multiplier = parseReading(input.multiplier);
+  if (!multiplier || multiplier <= 0) fail(back, "Kerroin on positiivinen luku.");
+  const method = input.readMethod === "auto" ? meterReadMethod(input.meterNumber) : input.readMethod;
+  if (!method) fail(back, "Lukutapaa ei voi päätellä ilman mittarinumeroa. Valitse lukutapa.");
+  await ctx.run(async (tx) => {
+    const rows = await tx.query(
+      `update ml_meters set meter_number = $3, read_method = $4, location = $5, multiplier = $6
+        where id = $1 and organization_id = $2 returning id`,
+      [input.meterId, ctx.org.organizationId, input.meterNumber, method, input.location, multiplier],
+    );
+    if (rows.length === 0) fail(back, "Mittaria ei löytynyt.");
+    await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "meter.update", entity: "ml_meters", entityId: input.meterId });
   });
   revalidatePath(back);
   redirect(back);
