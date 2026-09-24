@@ -64,7 +64,8 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [~] Tietomalli ja migraatiot: luonnos tehty (0001–0004), tarkistetaan varmuuskopiota vasten
 - [ ] Tiedonsiirto mittarilukema.fi:stä kopioon
 - [x] Ylläpitonäkymät: kiinteistöt, mittarit, asiakkaat, sopimukset, hinnasto
-- [x] Asiakasluettelon tuonti CSV:stä (857 riviä Joutsasta, paikallinen kanta)
+- [x] Asiakasluettelon tuonti CSV:stä (857 riviä Joutsasta)
+- [x] Fennoan myyntilaskut 2026 rekisterin pohjaksi: kiinteistöt, liittymät, mittarit, lukemat, sopimukset (tuotannossa 25.9.2026)
 
 ### Lukemat (vko 48, etäluettavat helmikuu 2027)
 - [ ] Etäluettavien mittarien lukemien tuonti (BLOCKERS 4)

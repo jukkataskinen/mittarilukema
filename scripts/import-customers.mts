@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
-import { openLocalDb } from "./lib/local-db.mts";
+import { openTargetDb } from "./lib/target-db.mts";
 import { normalizePhone } from "../src/lib/validation/phone.ts";
 
 /**
- * Asiakkaiden tuonti CSV-tiedostosta paikalliseen kantaan.
+ * Asiakkaiden tuonti CSV-tiedostosta paikalliseen kantaan tai `--tuotanto`-valinnalla Supabaseen.
  *
- *   npm run tuo:asiakkaat -- <tiedosto.csv> --org "Organisaation nimi" [--luo] [--kuiva]
+ *   npm run tuo:asiakkaat -- <tiedosto.csv> --org "Organisaation nimi" [--luo] [--kuiva] [--tuotanto]
  *
  * Sarakkeet (puolipiste, UTF-8): Nimi;Osoite;Postinumero;Postitoimipaikka;Email;Puhelin.
  * Osoite on laskutusosoite. Kiinteistöt ja sopimukset tuodaan myöhemmin
@@ -18,7 +18,7 @@ import { normalizePhone } from "../src/lib/validation/phone.ts";
  */
 
 const args = process.argv.slice(2);
-const file = args.find((a) => !a.startsWith("--") && args[args.indexOf(a) - 1] !== "--org");
+const file = args.find((a, i) => !a.startsWith("--") && args[i - 1] !== "--org");
 const orgName = args[args.indexOf("--org") + 1];
 const dryRun = args.includes("--kuiva");
 if (!file || !args.includes("--org") || !orgName) {
@@ -44,7 +44,7 @@ if (expected.some((h, i) => header[i] !== h)) {
   process.exit(1);
 }
 
-const db = await openLocalDb();
+const db = await openTargetDb(args);
 const stats = { rows: rows.length, imported: 0, duplicates: 0, companies: 0, phones: 0, badPhones: 0, badPostal: 0, emails: 0 };
 
 try {

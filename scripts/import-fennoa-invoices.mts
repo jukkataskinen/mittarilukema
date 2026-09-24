@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
-import { openLocalDb } from "./lib/local-db.mts";
+import { openTargetDb } from "./lib/target-db.mts";
 import { buildMeterChains, matchCustomer, titleCaseAddress, type CustomerCandidate, type RawReading } from "../src/lib/import/fennoa.ts";
 
 /**
- * Fennoan myyntilaskuaineiston tuonti paikalliseen kantaan.
+ * Fennoan myyntilaskuaineiston tuonti paikalliseen kantaan tai `--tuotanto`-valinnalla Supabaseen.
  *
  *   python scripts/fennoa/parse_invoices.py <fennoa_export.zip>
- *   npm run tuo:laskut -- --org "Joutsan Vesihuolto Oy" [data/private/fennoa/invoices.json] [--kuiva]
+ *   npm run tuo:laskut -- --org "Joutsan Vesihuolto Oy" [data/private/fennoa/invoices.json] [--kuiva] [--tuotanto]
  *
  * - Asiakas: laskun asiakas yhdistetään asiakasluetteloon (nimi ja osoite,
  *   sumea vertailu saman postinumeron sisällä) ja saa laskun asiakasnumeron.
@@ -62,7 +62,7 @@ const stats = {
 };
 const how = new Map<string, number>();
 
-const db = await openLocalDb();
+const db = await openTargetDb(args);
 try {
   await db.asService(async (tx) => {
     const [org] = await tx.query<{ id: string }>("select id from ml_organizations where name = $1", [orgName]);
