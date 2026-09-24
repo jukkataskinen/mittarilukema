@@ -32,4 +32,4 @@
 
 **Asiakastiedostot eivät kuulu repoon.** Tuontiskripti lukee CSV-tiedoston paikaltaan ja tulostaa vain määrät. `.gitignore` estää CSV-tiedostot, ja CI hylkää repon, jossa on asiakastiedoston näköinen tiedosto.
 
-**Oma Auth0-tenantti.** Mittarilukemalle tehdään oma EU-alueen tenantti `mittarilukema` eikä sovellusta eRapun tenanttiin. Syy on sama kuin omassa Supabase-projektissa: vesihuoltolaitosten käyttäjät ja asetukset pysyvät erillään muista sovelluksista. Vain henkilökunta kirjautuu (salasana ja todennussovellus), itserekisteröityminen on pois päältä, ja käyttöoikeus annetaan sovelluksessa.
+**Auth0: oma sovellus eRapun tenantissa.** Alun perin päätettiin oma tenantti, mutta Auth0:n tenanttiraja olisi vaatinut maksullisen tason. Mittarilukema saa oman sovelluksen eRapun EU-tenanttiin `erappu`. Tämä riittää, koska käyttöoikeudet ratkaistaan Mittarilukeman omassa kannassa (`ml_org_members`): jaettu tenantti jakaa vain kirjautumistunnukset, ei tietoja. eRapun käyttäjä ei näe Mittarilukemassa mitään ennen kuin hänet lisätään organisaatioon. Vain henkilökunta kirjautuu (salasana ja MFA, kuten eRapun henkilökunta).
