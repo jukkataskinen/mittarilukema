@@ -56,6 +56,17 @@ export const JOUTSA_PERIOD_BY_INVOICE_MONTH: Record<string, [string, string]> = 
   "2026-08": ["2025-12-31", "2026-06-30"],
 };
 
+/**
+ * Joutsan alue käyttöpaikan tunnuksesta (Unes): ensimmäinen numero 1–9
+ * (Jukka 25.9.2026). Alue 9 on Rutalahti, jolla on omat hintansa ja oma
+ * laskutusjaksonsa, joten se säilyttää nimensä.
+ */
+export function joutsaAreaName(unes: string | null | undefined): string | null {
+  const d = unes?.trim().match(/^([1-9])\d*$/)?.[1];
+  if (!d) return null;
+  return d === "9" ? "Rutalahti" : `Alue ${d}`;
+}
+
 export interface CustomerCandidate {
   id: string;
   name: string;

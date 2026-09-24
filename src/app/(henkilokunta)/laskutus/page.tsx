@@ -37,6 +37,10 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
   }));
   // Ehdotus oletusrajauksen (ilman aluetta tai kaikki) edellisestä ajosta; aluekohtaisilla ajoilla on oma jaksonsa.
   const lastMain = runs.find((r) => r.scope !== "area") ?? null;
+  // Oletusrajaus: edellisen pääajon rajaus, jotta Joutsan "kaikki paitsi Rutalahti" pysyy valittuna.
+  const scopeValue = (r: (typeof runs)[number] | null) =>
+    !r ? "all" : r.scope === "except_area" ? `except:${r.area_id}` : r.scope === "area" ? `area:${r.area_id}` : r.scope;
+  const defaultScope = scopeValue(lastMain);
   const [start, end] = suggestPeriod(org.billing_months, lastMain?.period_end ?? null, isoDateHelsinki());
 
   return (
@@ -107,14 +111,27 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             </Field>
             <div className="sm:col-span-2">
               <Field label="Kiinteistöt" htmlFor="scope" hint="Alue, jolla on eri laskutusjakso (esim. Rutalahti), ajetaan omana ajonaan.">
-                <Select id="scope" name="scope" defaultValue={areas.length ? "no_area" : "all"}>
+                <Select id="scope" name="scope" defaultValue={defaultScope}>
                   <option value="all">Kaikki kiinteistöt</option>
                   {areas.length ? <option value="no_area">Kiinteistöt ilman aluetta</option> : null}
-                  {areas.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      Alue: {a.name} ({a.property_count} kiint.)
-                    </option>
-                  ))}
+                  {areas.length ? (
+                    <optgroup label="Yksi alue">
+                      {areas.map((a) => (
+                        <option key={a.id} value={`area:${a.id}`}>
+                          {a.name} ({a.property_count} kiint.)
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {areas.length ? (
+                    <optgroup label="Kaikki paitsi">
+                      {areas.map((a) => (
+                        <option key={a.id} value={`except:${a.id}`}>
+                          Kaikki paitsi {a.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </Select>
               </Field>
             </div>

@@ -5,7 +5,8 @@ export interface RunRow {
   period_start: string;
   period_end: string;
   status: "draft" | "approved";
-  scope: "all" | "area" | "no_area";
+  scope: "all" | "area" | "no_area" | "except_area";
+  area_id: string | null;
   area_name: string | null;
   note: string | null;
   created_at: string;
@@ -21,7 +22,7 @@ export interface RunRow {
 }
 
 const RUN_SELECT = `
-  select r.id, r.period_start::text, r.period_end::text, r.status, r.scope, a.name as area_name, r.note, r.created_at, r.approved_at,
+  select r.id, r.period_start::text, r.period_end::text, r.status, r.scope, r.area_id, a.name as area_name, r.note, r.created_at, r.approved_at,
          coalesce(cu.full_name, cu.email) as created_by_name, coalesce(au.full_name, au.email) as approved_by_name,
          count(i.id)::int as invoices,
          count(i.id) filter (where i.status = 'excluded')::int as excluded,
@@ -45,7 +46,10 @@ export async function getRun(tx: Sql, orgId: string, id: string) {
 }
 
 export function scopeLabel(r: Pick<RunRow, "scope" | "area_name">): string {
-  return r.scope === "all" ? "Kaikki kiinteistöt" : r.scope === "no_area" ? "Kiinteistöt ilman aluetta" : `Alue: ${r.area_name}`;
+  if (r.scope === "all") return "Kaikki kiinteistöt";
+  if (r.scope === "no_area") return "Kiinteistöt ilman aluetta";
+  if (r.scope === "except_area") return `Kaikki paitsi ${r.area_name}`;
+  return `Alue: ${r.area_name}`;
 }
 
 export interface InvoiceListRow {

@@ -20,15 +20,15 @@ export async function createBillingRun(
   tx: Sql,
   input: {
     organizationId: string; userId: string; periodStart: string; periodEnd: string; note?: string | null;
-    /** all = kaikki kiinteistöt, no_area = ilman aluetta, muuten alueen tunniste. */
-    scope?: "all" | "no_area" | { areaId: string };
+    /** all = kaikki kiinteistöt, no_area = ilman aluetta, areaId = yksi alue, exceptAreaId = kaikki paitsi alue. */
+    scope?: "all" | "no_area" | { areaId: string } | { exceptAreaId: string };
   },
 ): Promise<{ runId: string; invoices: number; withIssues: number }> {
   const { organizationId: orgId, periodStart: start, periodEnd: end } = input;
   if (end <= start) throw new BillingRunError("Jakson loppu on ennen alkua.");
   const scope = input.scope ?? "all";
-  const scopeName = typeof scope === "object" ? "area" : scope;
-  const areaId = typeof scope === "object" ? scope.areaId : null;
+  const scopeName = typeof scope === "object" ? ("areaId" in scope ? "area" : "except_area") : scope;
+  const areaId = typeof scope === "object" ? ("areaId" in scope ? scope.areaId : scope.exceptAreaId) : null;
 
   const existing = await tx.query(
     `select 1 from ml_billing_runs where organization_id = $1 and period_start = $2 and period_end = $3
@@ -60,6 +60,7 @@ export async function createBillingRun(
   for (const p of properties.values()) {
     if (scopeName === "no_area" && p.areaId !== null) continue;
     if (scopeName === "area" && p.areaId !== areaId) continue;
+    if (scopeName === "except_area" && p.areaId === areaId) continue;
     const activeConn = p.connections.some((c) => c.connectedOn <= end && (c.disconnectedOn === null || c.disconnectedOn > start));
     if (!activeConn) continue;
     const res = calculateBill({ periodStart: start, periodEnd: end, areaId: p.areaId, connections: p.connections, meters: p.meters, tariffs });

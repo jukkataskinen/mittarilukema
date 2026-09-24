@@ -75,7 +75,11 @@ describe("laskutusajo", () => {
       createBillingRun(tx, { organizationId: a.id, userId: a.staff.id, periodStart: "2025-09-30", periodEnd: "2026-03-31", scope: { areaId: a.area } }),
     );
     expect(area.invoices).toBe(1);
-    for (const runId of [none.runId, area.runId]) {
+    const except = await db.asUser(a.staff.sub, (tx) =>
+      createBillingRun(tx, { organizationId: a.id, userId: a.staff.id, periodStart: "2025-09-30", periodEnd: "2026-03-31", scope: { exceptAreaId: a.area } }),
+    );
+    expect(except.invoices).toBe(0);
+    for (const runId of [none.runId, area.runId, except.runId]) {
       await db.asUser(a.staff.sub, (tx) => deleteDraftRun(tx, { organizationId: a.id, userId: a.staff.id, runId }));
     }
   });

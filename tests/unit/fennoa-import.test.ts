@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMeterChains, matchCustomer, similarity, titleCaseAddress, type RawReading } from "@/lib/import/fennoa";
+import { buildMeterChains, joutsaAreaName, matchCustomer, similarity, titleCaseAddress, type RawReading } from "@/lib/import/fennoa";
 
 const r = (p: Partial<RawReading> & Pick<RawReading, "invoice" | "end" | "previous" | "current">): RawReading => ({
   position: 0,
@@ -18,6 +18,16 @@ describe("osoitteet ja nimet", () => {
   it("samankaltaisuus", () => {
     expect(similarity("abc", "abc")).toBe(1);
     expect(similarity("matti virtanen", "matti virtanen liisa ja")).toBeGreaterThan(0.6);
+  });
+});
+
+describe("alue käyttöpaikan tunnuksesta", () => {
+  it("ensimmäinen numero, 9 on Rutalahti", () => {
+    expect(joutsaAreaName("40960")).toBe("Alue 4");
+    expect(joutsaAreaName("71030")).toBe("Alue 7");
+    expect(joutsaAreaName("90100")).toBe("Rutalahti");
+    expect(joutsaAreaName("0123")).toBeNull();
+    expect(joutsaAreaName(null)).toBeNull();
   });
 });
 

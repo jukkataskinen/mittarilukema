@@ -16,7 +16,8 @@ export async function createRunAction(formData: FormData) {
       periodStart: date("Anna edellinen lukemapäivä."),
       periodEnd: date("Anna jakson loppu."),
       note: z.preprocess(emptyToNull, z.string().max(500).nullable()),
-      scope: z.union([z.enum(["all", "no_area"]), z.string().uuid()]),
+      // "all", "no_area", "area:<id>" tai "except:<id>"
+      scope: z.string().regex(/^(all|no_area|(area|except):[0-9a-f-]{36})$/, "Valitse kiinteistöt."),
     }),
     formData,
     "/laskutus",
@@ -30,7 +31,12 @@ export async function createRunAction(formData: FormData) {
           organizationId: ctx.org.organizationId,
           userId: ctx.user.id,
           ...rest,
-          scope: scope === "all" || scope === "no_area" ? scope : { areaId: scope },
+          scope:
+            scope === "all" || scope === "no_area"
+              ? scope
+              : scope.startsWith("area:")
+                ? { areaId: scope.slice(5) }
+                : { exceptAreaId: scope.slice(7) },
         }),
       )
     ).runId;

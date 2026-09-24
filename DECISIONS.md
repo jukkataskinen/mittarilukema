@@ -55,3 +55,5 @@
 **Laskutusajon rajaus alueittain.** Ajo tehdään kaikille kiinteistöille, kiinteistöille ilman aluetta tai yhdelle alueelle. Joutsassa Rutalahti laskutetaan eri jaksolla (31.12.–30.6.) kuin Joutsa ja Leivonmäki (30.9.–31.3.).
 
 **Negatiivista kulutusta ei laskuteta.** Jos lukema on pienempi kuin edellinen, kulutukseksi lasketaan 0 ja laskulle jää huomautus. Näin virheellisestä lukemasta ei synny hyvitystä.
+
+**Joutsan alueet Unes-tunnuksesta.** Kiinteistön alue on käyttöpaikan tunnuksen ensimmäinen numero 1–9 (Jukka 25.9.2026). Alue 9 on sama joukko kuin Rutalahti (68 kiinteistöä) ja säilyttää nimensä, koska sen hinnat on sidottu alueeseen. Muut alueet ovat nimillä Alue 1–Alue 8 siihen asti, kun oikeat nimet tiedetään; nimen voi vaihtaa asetuksissa. Laskutusajossa on rajaus kaikki paitsi alue (0009), ja Joutsan pääajo on kaikki paitsi Rutalahti.

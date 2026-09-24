@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { openTargetDb } from "./lib/target-db.mts";
-import { buildMeterChains, JOUTSA_PERIOD_BY_INVOICE_MONTH, matchCustomer, titleCaseAddress, type CustomerCandidate, type RawReading } from "../src/lib/import/fennoa.ts";
+import { buildMeterChains, JOUTSA_PERIOD_BY_INVOICE_MONTH, joutsaAreaName, matchCustomer, titleCaseAddress, type CustomerCandidate, type RawReading } from "../src/lib/import/fennoa.ts";
 
 /**
  * Fennoan myyntilaskuaineiston tuonti paikalliseen kantaan tai `--tuotanto`-valinnalla Supabaseen.
@@ -42,7 +42,6 @@ if (!orgName) {
 }
 
 const COMPANY = /\b(oy|oyj|ab|ky|ay|tmi|ry|kunta|seurakunta|osakaskunta|yhtymä|kuolinpesä|säätiö|osuuskunta)\b/i;
-const AREA = /(Rutalahti|Leivonmäki|Joutsa)$/;
 const WATER = /^(vesi|kylmävesi|veden|perusmaksu)/i;
 const WASTE = /jäte/i;
 const dayBefore = (iso: string) => new Date(Date.parse(`${iso}T12:00:00Z`) - 864e5).toISOString().slice(0, 10);
@@ -143,12 +142,8 @@ try {
       const place = [...invs].reverse().flatMap((i) => i.lukemat.filter((r) => r.unes === unes && r.kayttopaikka).map((r) => r.kayttopaikka!))[0];
       const [address, ...remarks] = (place ?? "").split(/,\s*/);
       const rows = invs.flatMap((i) => i.rivit);
-      const areaCounts = new Map<string, number>();
-      for (const r of rows) {
-        const a = r.tuote.match(AREA)?.[1];
-        if (a) areaCounts.set(a, (areaCounts.get(a) ?? 0) + 1);
-      }
-      const area = [...areaCounts].sort((a, b) => b[1] - a[1])[0]?.[0];
+      // Alue käyttöpaikan tunnuksen ensimmäisestä numerosta (alue 9 = Rutalahti).
+      const area = joutsaAreaName(unes);
       const fees = (rx: RegExp, not?: RegExp) =>
         [...new Set(rows.filter((r) => /perusmaksu/i.test(r.tuote) && rx.test(r.tuote) && !(not && not.test(r.tuote)) && r.hinta !== null).map((r) => r.hinta!))];
       const waterFees = fees(/./, WASTE);
