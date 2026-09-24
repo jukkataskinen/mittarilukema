@@ -26,7 +26,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return new NextResponse(err instanceof Error ? err.message : "Virhe", { status: 400 });
   }
   const base = process.env.APP_BASE_URL?.replace(/\/$/, "") || new URL(request.url).origin;
-  const esc = (v: string | null) => (v === null ? "" : /[;"\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  // Kaavaksi tulkittava alku (=, +, -, @) estetään heittomerkillä: Excel ei suorita solua kaavana.
+  const esc = (v: string | null) => {
+    if (v === null) return "";
+    const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+    return /[;"\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  };
   const header = ["Asiakasnumero", "Asiakas", "Puhelin", "Osoite", "Unes", "Mittari", "Linkki"];
   const rows = links.map((l) => [
     l.customerNumber, l.customerName, l.phone ? formatPhone(l.phone) : null, [l.streetAddress, l.city].filter(Boolean).join(", "),

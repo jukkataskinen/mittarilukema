@@ -42,12 +42,18 @@ src/app/(henkilokunta)/   henkilökunnan sivut (StaffShell, requireStaff)
 src/app/kirjaudu/         kirjautuminen
 src/lib/db/               kantakerros (PGlite / Postgres)
 src/lib/auth/             istunto, käyttäjä ja roolit
+src/app/lukema/[token]/   julkinen lukemalomake (linkki, ei kirjautumista)
+src/app/api/              linkkien CSV-lataus, tekstiviestien vastaanotto
 src/lib/registry/         rekisterin kyselyt
-src/lib/readings/         lukeman kirjaus ja tarkistukset
-supabase/migrations/      0001 perusta, 0002 rekisteri, 0003 lukemat, 0004 hinnasto
+src/lib/readings/         lukeman kirjaus, tarkistukset, linkit, lukulista
+src/lib/billing/          laskentamoottori (calculate), laskutusajo (run), lisätieto (info)
+src/lib/sms/              tekstiviestien tulkinta ja vastaanotto, lähetys testitilassa
+src/lib/import/           Fennoa-aineiston tuonnin logiikka
+src/lib/members.ts        käyttäjien lisäys ja roolit
+supabase/migrations/      0001–0013 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
-scripts/                  db-reset, seed-demo, import-customers, migrate-remote
+scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu
 ```
 
 ## Komennot
@@ -56,6 +62,14 @@ scripts/                  db-reset, seed-demo, import-customers, migrate-remote
 npm run dev                  kehityspalvelin (PGlite)
 npm run db:reset             tyhjä paikallinen kanta
 npm run db:seed:demo         kuvitteellinen demodata
-npm run tuo:asiakkaat -- <tiedosto.csv> --org "Nimi" [--luo] [--kuiva]
+npm run tuo:asiakkaat -- <tiedosto.csv> --org "Nimi" [--luo] [--kuiva] [--tuotanto]
+python scripts/fennoa/parse_invoices.py <fennoa_export.zip>
+npm run tuo:laskut -- --org "Joutsan Vesihuolto Oy" [--kuiva] [--tuotanto]
+npm run joutsa:hinnasto [-- --tuotanto]      Joutsan hinnasto ja perusmaksuluokat
+npm run joutsa:alueet [-- --tuotanto]        alueet Unes-tunnuksesta
+npm run vertaa:laskut [-- --tuotanto]        Fennoan laskut uudelleen laskettuina
+npm run kayttaja:lisaa -- --email x --org "Nimi" --rooli owner [--luo-org actual|estimate] [--tuotanto]
 npm run lint && npm run typecheck && npm run test
 ```
+
+`--tuotanto` kirjoittaa Supabaseen `.env.local`:n osoitteella. Käytä vain Jukan luvalla.
