@@ -51,9 +51,9 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 ### Perusta (vko 41)
 - [x] GitHub-repo `jukkataskinen/mittarilukema` (yksityinen)
 - [x] Suunnitelmatiedostot repoon
-- [ ] Oma Supabase-projekti (ei jaettua `skog`-projektia)
+- [x] Oma Supabase-projekti (ei jaettua `skog`-projektia)
 - [ ] Sovelluksen runko (Next.js, sama pino kuin eRapussa)
-- [ ] Vercel-projekti
+- [x] Vercel-projekti
 
 ### Tiedot (vko 43–47)
 - [~] mittarilukema.fi:n varmuuskopio ja tietokannan rakenne (BLOCKERS 1)
