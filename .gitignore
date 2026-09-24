@@ -9,3 +9,10 @@ data/private/
 *.sql.gz
 *.dump
 *.bak
+
+# Paikallinen kehityskanta (PGlite)
+.data/
+*.tsbuildinfo
+next-env.d.ts
+# Asiakastiedostot
+*.csv

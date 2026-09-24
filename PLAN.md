@@ -52,19 +52,26 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] GitHub-repo `jukkataskinen/mittarilukema` (yksityinen)
 - [x] Suunnitelmatiedostot repoon
 - [x] Oma Supabase-projekti (ei jaettua `skog`-projektia)
-- [ ] Sovelluksen runko (Next.js, sama pino kuin eRapussa)
+- [x] Sovelluksen runko (Next.js, sama pino kuin eRapussa)
+- [x] Tietokantayhteys Supabaseen (jaettu pooleri, Irlanti)
+- [ ] Kirjautuminen: Auth0 (BLOCKERS 6)
+- [ ] Tietokannan osoite Verceliin ja ensimmäinen tuotantojulkaisu
 - [x] Vercel-projekti
 
 ### Tiedot (vko 43–47)
 - [~] mittarilukema.fi:n varmuuskopio ja tietokannan rakenne (BLOCKERS 1)
-- [ ] Tietomalli ja migraatiot
+- [~] Tietomalli ja migraatiot: luonnos tehty (0001–0004), tarkistetaan varmuuskopiota vasten
 - [ ] Tiedonsiirto mittarilukema.fi:stä kopioon
-- [ ] Ylläpitonäkymät: kiinteistöt, mittarit, asiakkaat, sopimukset, hinnasto
+- [x] Ylläpitonäkymät: kiinteistöt, mittarit, asiakkaat, sopimukset, hinnasto
+- [x] Asiakasluettelon tuonti CSV:stä (857 riviä Joutsasta, paikallinen kanta)
 
 ### Lukemat (vko 48, etäluettavat helmikuu 2027)
 - [ ] Etäluettavien mittarien lukemien tuonti (BLOCKERS 4)
 - [~] Tekstiviestilukemat, sama numero ja palvelu kuin nyt (BLOCKERS 2)
-- [ ] Muistutusviestit ja poikkeavien lukemien tarkistus
+- [x] Poikkeavien lukemien tarkistus ja hyväksyntä
+- [x] Lukukierrokset
+- [ ] Muistutusviestit
+- [ ] Lukemalomake linkillä ilman kirjautumista
 
 ### Laskutus (Joutsa vko 50, Kärkinen aloituksen mukaan)
 - [ ] Toteutuneen kulutuksen laskutus (Joutsa)

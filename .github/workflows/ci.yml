@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      AUTH_MODE: dev
+      DB_DRIVER: pglite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      # Asiakastiedot eivät kuulu repoon.
+      - name: Henkilötietovahti
+        run: |
+          if git ls-files | grep -iE '\.(csv|xlsx?|dump|bak|sql\.gz)$'; then
+            echo "Repossa on tiedosto, joka voi sisältää asiakastietoja"; exit 1; fi
+      - run: npm audit --audit-level=high || true

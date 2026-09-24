@@ -1,0 +1,23 @@
+import type { IconName } from "@/components/NavIcon";
+import type { OrgRole } from "@/lib/auth/current-user";
+
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
+  roles?: OrgRole[];
+}
+
+/** Päivittäinen työ: rekisteri ja lukemat. */
+export const STAFF_NAV: NavItem[] = [
+  { href: "/tyopoyta", label: "Työpöytä", icon: "home" },
+  { href: "/kiinteistot", label: "Kiinteistöt", icon: "building" },
+  { href: "/asiakkaat", label: "Asiakkaat", icon: "users" },
+  { href: "/lukemat", label: "Lukemat", icon: "droplet" },
+];
+
+/** Organisaation asetukset ja hinnat. */
+export const STAFF_NAV_ORG: NavItem[] = [
+  { href: "/hinnasto", label: "Hinnasto", icon: "coins", roles: ["owner", "staff"] },
+  { href: "/asetukset", label: "Asetukset", icon: "gear", roles: ["owner"] },
+];

@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.woff2 binary
+*.png binary
+*.ttf binary
+DECISIONS.md merge=union
+BLOCKERS.md merge=union
