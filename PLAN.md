@@ -54,8 +54,9 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Oma Supabase-projekti (ei jaettua `skog`-projektia)
 - [x] Sovelluksen runko (Next.js, sama pino kuin eRapussa)
 - [x] Tietokantayhteys Supabaseen (jaettu pooleri, Irlanti)
-- [ ] Kirjautuminen: Auth0 (BLOCKERS 6)
-- [ ] Tietokannan osoite Verceliin ja ensimmäinen tuotantojulkaisu
+- [x] Kirjautuminen: Auth0 (eRapun tenantti, MFA)
+- [x] Tietokannan osoite Verceliin ja ensimmäinen tuotantojulkaisu
+- [x] Organisaatiot ja pääkäyttäjä tuotantokantaan
 - [x] Vercel-projekti
 
 ### Tiedot (vko 43–47)
