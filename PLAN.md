@@ -70,7 +70,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 
 ### Lukemat (vko 48, etäluettavat helmikuu 2027)
 - [ ] Etäluettavien mittarien lukemien tuonti (BLOCKERS 4)
-- [~] Tekstiviestilukemat, sama numero ja palvelu kuin nyt (BLOCKERS 2)
+- [~] Tekstiviestilukemat: vastaanotto, tulkinta, yhdistäminen asiakkaaseen ja käsittelynäkymä valmiit; palveluntarjoaja ja numeron siirto auki (BLOCKERS 2)
 - [x] Poikkeavien lukemien tarkistus ja hyväksyntä
 - [x] Lukukierrokset
 - [ ] Muistutusviestit

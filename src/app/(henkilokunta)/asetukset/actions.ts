@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth/current-user";
 import { fail, isUniqueViolation, parseForm } from "@/lib/forms";
 import { audit } from "@/lib/audit";
 import { addMember, changeMemberRole, MemberError, removeMember } from "@/lib/members";
+import { normalizePhone } from "@/lib/validation/phone";
 
 const BACK = "/asetukset";
 
@@ -128,4 +129,22 @@ export async function removeMemberAction(formData: FormData) {
   }
   revalidatePath(BACK);
   redirect(BACK);
+}
+
+export async function updateSmsNumberAction(formData: FormData) {
+  const ctx = await requireRole("owner");
+  const raw = String(formData.get("smsNumber") ?? "").trim();
+  const number = raw ? normalizePhone(raw) : null;
+  if (raw && !number) fail(BACK, "Tarkista tekstiviestinumero.");
+  try {
+    await ctx.run(async (tx) => {
+      await tx.query("update ml_organizations set sms_number = $2 where id = $1", [ctx.org.organizationId, number]);
+      await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "organization.sms_number", entity: "ml_organizations", entityId: ctx.org.organizationId });
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) fail(BACK, "Numero on jo toisen laitoksen käytössä.");
+    throw err;
+  }
+  revalidatePath(BACK);
+  redirect(`${BACK}?ilmoitus=tallennettu`);
 }

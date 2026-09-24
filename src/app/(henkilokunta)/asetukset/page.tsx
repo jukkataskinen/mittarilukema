@@ -4,7 +4,8 @@ import { requireRole, ROLE_LABEL, type OrgRole } from "@/lib/auth/current-user";
 import { listAreas } from "@/lib/registry/queries";
 import { BILLING_METHOD, MONTHS } from "@/lib/labels";
 import { formatDateTime } from "@/lib/format";
-import { addMemberAction, changeMemberRoleAction, createAreaAction, removeMemberAction, renameAreaAction, updateBillingAction } from "./actions";
+import { addMemberAction, changeMemberRoleAction, createAreaAction, removeMemberAction, renameAreaAction, updateBillingAction, updateSmsNumberAction } from "./actions";
+import { formatPhone } from "@/lib/validation/phone";
 
 export const metadata = { title: "Asetukset" };
 
@@ -16,8 +17,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const orgId = ctx.org.organizationId;
   const data = await ctx.run(async (tx) => ({
     org: (
-      await tx.query<{ name: string; business_id: string | null; billing_method: "actual" | "estimate"; billing_months: number[]; settlement_month: number | null }>(
-        "select name, business_id, billing_method, billing_months, settlement_month from ml_organizations where id = $1",
+      await tx.query<{ name: string; business_id: string | null; billing_method: "actual" | "estimate"; billing_months: number[]; settlement_month: number | null; sms_number: string | null }>(
+        "select name, business_id, billing_method, billing_months, settlement_month, sms_number from ml_organizations where id = $1",
         [orgId],
       )
     )[0],
@@ -95,6 +96,22 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <div>
                 <Button>Tallenna</Button>
               </div>
+            </form>
+          </Panel>
+        </section>
+
+        <section className="lg:col-span-2">
+          <SectionTitle>Tekstiviestilukemat</SectionTitle>
+          <Panel>
+            <form action={updateSmsNumberAction} className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+              <Field
+                label="Laitoksen tekstiviestinumero"
+                htmlFor="smsNumber"
+                hint="Numero, johon asiakkaat lähettävät lukemat. Viesti yhdistetään asiakkaaseen lähettäjän puhelinnumerolla."
+              >
+                <Input id="smsNumber" name="smsNumber" type="tel" defaultValue={org.sms_number ? formatPhone(org.sms_number) : ""} />
+              </Field>
+              <Button variant="secondary">Tallenna</Button>
             </form>
           </Panel>
         </section>

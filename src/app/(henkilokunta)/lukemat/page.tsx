@@ -6,6 +6,7 @@ import { listReadings, listRounds } from "@/lib/registry/queries";
 import { formatDate, isoDateHelsinki } from "@/lib/format";
 import { ReadingsTable } from "./ReadingsTable";
 import { closeRoundAction, createRoundAction } from "./actions";
+import { loadSms, SmsList } from "./SmsList";
 
 export const metadata = { title: "Lukemat" };
 
@@ -13,6 +14,7 @@ const FILTERS = [
   { key: "kaikki", label: "Viimeisimmät", status: undefined },
   { key: "tarkistettava", label: "Tarkistettavat", status: "needs_review" },
   { key: "hylatty", label: "Hylätyt", status: "rejected" },
+  { key: "tekstiviestit", label: "Tekstiviestit", status: undefined },
 ] as const;
 
 export default async function ReadingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -20,11 +22,13 @@ export default async function ReadingsPage({ searchParams }: { searchParams: Pro
   const ctx = await requireStaff();
   const filter = FILTERS.find((f) => f.key === sp.tila) ?? FILTERS[0];
   const orgId = ctx.org.organizationId;
-  const { rows, rounds } = await ctx.run(async (tx) => ({
-    rows: await listReadings(tx, orgId, { status: filter.status, limit: 200 }),
-    rounds: await listRounds(tx, orgId),
-  }));
   const canManage = ctx.can("owner", "staff");
+  const smsTab = filter.key === "tekstiviestit";
+  const { rows, rounds, sms } = await ctx.run(async (tx) => ({
+    rows: smsTab ? [] : await listReadings(tx, orgId, { status: filter.status, limit: 200 }),
+    rounds: await listRounds(tx, orgId),
+    sms: smsTab && canManage ? await loadSms(tx, orgId) : null,
+  }));
 
   return (
     <>
@@ -33,10 +37,16 @@ export default async function ReadingsPage({ searchParams }: { searchParams: Pro
 
       <Tabs
         active={filter.key}
-        items={FILTERS.map((f) => ({ key: f.key, label: f.label, href: f.key === "kaikki" ? "/lukemat" : `/lukemat?tila=${f.key}` }))}
+        items={FILTERS.filter((f) => f.key !== "tekstiviestit" || canManage).map((f) => ({
+          key: f.key,
+          label: f.label,
+          href: f.key === "kaikki" ? "/lukemat" : `/lukemat?tila=${f.key}`,
+        }))}
       />
 
-      {rows.length === 0 ? (
+      {sms ? (
+        <SmsList data={sms} canManage={canManage} />
+      ) : rows.length === 0 ? (
         <EmptyState title={filter.key === "tarkistettava" ? "Ei tarkistettavia lukemia" : "Ei lukemia"}>
           Lukemat tulevat myöhemmin myös etäluennasta ja tekstiviesteistä.
         </EmptyState>
