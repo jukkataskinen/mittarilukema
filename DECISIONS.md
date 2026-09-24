@@ -31,3 +31,5 @@
 **Kiinteistöllä yksi maksaja kerrallaan.** Kannan rajoite estää kaksi päällekkäistä laskutettavaa sopimusta. Omistajanvaihdoksessa edellinen sopimus päätetään uuden alkua edeltävään päivään.
 
 **Asiakastiedostot eivät kuulu repoon.** Tuontiskripti lukee CSV-tiedoston paikaltaan ja tulostaa vain määrät. `.gitignore` estää CSV-tiedostot, ja CI hylkää repon, jossa on asiakastiedoston näköinen tiedosto.
+
+**Oma Auth0-tenantti.** Mittarilukemalle tehdään oma EU-alueen tenantti `mittarilukema` eikä sovellusta eRapun tenanttiin. Syy on sama kuin omassa Supabase-projektissa: vesihuoltolaitosten käyttäjät ja asetukset pysyvät erillään muista sovelluksista. Vain henkilökunta kirjautuu (salasana ja todennussovellus), itserekisteröityminen on pois päältä, ja käyttöoikeus annetaan sovelluksessa.
