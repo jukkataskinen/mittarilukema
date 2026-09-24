@@ -76,7 +76,8 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [ ] Lukemalomake linkillä ilman kirjautumista
 
 ### Laskutus (Joutsa vko 50, Kärkinen aloituksen mukaan)
-- [~] Toteutuneen kulutuksen laskutus (Joutsa): laskentamoottori ja vertailu Fennoan laskuihin valmiit (853 täsmää); laskutusajo ja laskujen tallennus tekemättä
+- [x] Toteutuneen kulutuksen laskutus (Joutsa): laskentamoottori, vertailu Fennoan laskuihin (853 täsmää) ja laskutusajo tarkistuksineen
+- [ ] Loppulasku omistajanvaihdoksessa
 - [ ] Arviolasku ja vuositasaus (Kärkinen)
 - [ ] Laskujen vienti Fennoaan (testiympäristöön, ei tuotantoon)
 

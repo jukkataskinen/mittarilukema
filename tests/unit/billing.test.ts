@@ -88,7 +88,7 @@ describe("Joutsan lasku", () => {
 
   it("puuttuva lukema on huomautus, ei nollalaskua hiljaa", () => {
     const r = calculateBill(base({ meters: [{ ...base().meters[0], readings: [{ readOn: "2025-09-30", reading: 5657 }] }] }));
-    expect(r.issues.join()).toMatch(/puuttuu lukema/);
+    expect(r.issues.join()).toMatch(/lukema puuttuu/);
   });
 
   it("hinnanmuutos 1.10.2026: perusmaksu kuukausittain, käyttömaksu päivien suhteessa", () => {
@@ -129,6 +129,13 @@ describe("Joutsan lasku", () => {
       "2026-03-31",
     );
     expect(u?.m3).toBe(8200);
+  });
+
+  it("negatiivista kulutusta ei laskuteta hyvityksenä", () => {
+    const r = calculateBill(base({ meters: [{ ...base().meters[0], readings: [{ readOn: "2025-09-30", reading: 1895 }, { readOn: "2026-03-31", reading: 1893 }] }] }));
+    expect(r.waterM3).toBe(0);
+    expect(r.lines.every((l) => l.net >= 0)).toBe(true);
+    expect(r.issues.join()).toMatch(/pienempi kuin edellinen/);
   });
 
   it("puuttuva perusmaksuluokka on huomautus", () => {

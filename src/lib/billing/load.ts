@@ -23,10 +23,10 @@ export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ prop
     [orgId],
   );
   const meters = await tx.query<{
-    id: string; connection_id: string; property_id: string; installed_on: string; start_reading: string; removed_on: string | null;
+    id: string; connection_id: string; property_id: string; meter_number: string | null; installed_on: string; start_reading: string; removed_on: string | null;
     final_reading: string | null; multiplier: string; readings: { r: string; d: string }[] | null;
   }>(
-    `select m.id, m.connection_id, k.property_id, m.installed_on::text, m.start_reading::text, m.removed_on::text,
+    `select m.id, m.connection_id, k.property_id, m.meter_number, m.installed_on::text, m.start_reading::text, m.removed_on::text,
             m.final_reading::text, m.multiplier::text,
             (select json_agg(json_build_object('r', r.reading::text, 'd', r.read_on::text) order by r.read_on)
                from ml_readings r where r.meter_id = m.id and r.status = 'accepted') as readings
@@ -55,6 +55,7 @@ export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ prop
     properties.get(m.property_id)?.meters.push({
       id: m.id,
       connectionId: m.connection_id,
+      meterNumber: m.meter_number,
       installedOn: m.installed_on,
       startReading: Number(m.start_reading),
       removedOn: m.removed_on,

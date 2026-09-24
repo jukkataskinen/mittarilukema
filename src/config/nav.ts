@@ -14,6 +14,7 @@ export const STAFF_NAV: NavItem[] = [
   { href: "/kiinteistot", label: "Kiinteistöt", icon: "building" },
   { href: "/asiakkaat", label: "Asiakkaat", icon: "users" },
   { href: "/lukemat", label: "Lukemat", icon: "droplet" },
+  { href: "/laskutus", label: "Laskutus", icon: "registry", roles: ["owner", "staff"] },
 ];
 
 /** Organisaation asetukset ja hinnat. */

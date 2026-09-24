@@ -21,6 +21,7 @@ const TABLES = [
   "ml_readings",
   "ml_tariffs",
 ];
+// Laskutusajon taulut testataan tiedostossa billing-run.test.ts.
 
 let db: Database;
 let a: OrgFixture;

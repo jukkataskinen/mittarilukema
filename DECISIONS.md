@@ -49,3 +49,9 @@
 **Laskentamoottori (src/lib/billing/calculate.ts).** Kulutus lasketaan mittareittain: jakson loppua lähimmän lukeman (60 päivän ikkuna) ja sitä edeltävän lukeman erotus kerrottuna kertoimella. Jäteveden määrä on vesimittarin mukainen. Perusmaksu lasketaan kuukausittain liittymän voimassaolon ajalta. Hinnanmuutoksessa kesken jakson perusmaksu määräytyy kuukauden alun hinnasta ja käyttömaksu jaetaan päivien suhteessa. Vertailussa Joutsan vuoden 2026 Fennoa-laskuihin 853 laskua täsmäsi sentilleen. Jäljelle jääneet erot olivat vanhan järjestelmän poikkeuksia: vajaat jaksot, useampi lasku samalta jaksolta ja sisäisesti ristiriitaiset laskut.
 
 **Jaksottomat lukemat saavat laskun ajankohdan jakson.** Fennoan laskujen lukemariveistä noin 790:ltä puuttuu jakso. Toukokuun laskuilla jakso on 30.9.2025–31.3.2026 ja elokuun Rutalahden laskuilla 31.12.2025–30.6.2026 (JOUTSA_PERIOD_BY_INVOICE_MONTH).
+
+**Laskutusajo (0007).** Laskutusajo laskee jakson laskut ja tallentaa ne tarkistettaviksi. Maksaja on jakson lopussa voimassa olevan laskutettavan sopimuksen asiakas. Maksajan vaihtuminen kesken jakson jää huomautukseksi, eikä laskua jaeta automaattisesti. Loppulasku tehdään erikseen, ja laskun voi jättää pois ajosta. Luonnoksen voi poistaa ja laskea uudelleen. Hyväksytty ajo lukitaan tietokannan tasolla. Vientiä Fennoaan ei ole, ja mitään ei lähetetä ennen kuin siitä erikseen päätetään (Jukka 25.9.2026).
+
+**Laskutusajon rajaus alueittain.** Ajo tehdään kaikille kiinteistöille, kiinteistöille ilman aluetta tai yhdelle alueelle. Joutsassa Rutalahti laskutetaan eri jaksolla (31.12.–30.6.) kuin Joutsa ja Leivonmäki (30.9.–31.3.).
+
+**Negatiivista kulutusta ei laskuteta.** Jos lukema on pienempi kuin edellinen, kulutukseksi lasketaan 0 ja laskulle jää huomautus. Näin virheellisestä lukemasta ei synny hyvitystä.

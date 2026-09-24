@@ -41,6 +41,8 @@ export interface BillingMeter {
   removedOn: string | null;
   finalReading: number | null;
   multiplier: number;
+  /** Mittarinumero huomautuksiin; puuttuu laskuilta tuoduilta mittareilta. */
+  meterNumber?: string | null;
   /** Vain hyväksytyt lukemat. */
   readings: BillingReading[];
 }
@@ -186,10 +188,12 @@ export function calculateBill(input: BillingInput): BillingResult {
     if (!conn || conn.kind !== measuringKind) continue;
     const u = meterUsage(m, start, end, input.readingWindowDays);
     if (!u) continue;
-    if (!u.to) issues.push(`Mittarilta puuttuu lukema jakson lopusta (${m.id}).`);
-    if (u.m3 < 0) issues.push(`Negatiivinen kulutus mittarilla ${m.id}.`);
+    const name = m.meterNumber ? `Mittari ${m.meterNumber}` : "Mittari";
+    if (!u.to) issues.push(`${name}: lukema puuttuu jakson lopusta.`);
+    // Negatiivista kulutusta ei laskuteta hyvityksenä: lukema on virheellinen tai mittari vaihdettu kirjaamatta.
+    if (u.m3 < 0) issues.push(`${name}: lukema on pienempi kuin edellinen (${u.m3} m³), kulutukseksi laskettu 0.`);
     usage.push({ meterId: m.id, connectionKind: conn.kind, from: u.from, to: u.to, m3: u.m3 });
-    metered += u.m3;
+    metered += Math.max(0, u.m3);
   }
   if (measuringKind && usage.length === 0) issues.push("Kiinteistöllä ei ole mittaria jaksolla.");
   const waterM3 = water ? round3(metered) : 0;
