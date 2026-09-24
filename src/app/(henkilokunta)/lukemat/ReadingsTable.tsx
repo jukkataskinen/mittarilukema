@@ -36,7 +36,8 @@ export function ReadingsTable({
       </thead>
       <tbody>
         {rows.map((r) => {
-          const usage = r.previous_reading !== null ? Number(r.reading) - Number(r.previous_reading) : null;
+          // Teollisuusmittarin lukema kerrotaan kertoimella (0005_meter_multiplier.sql).
+          const usage = r.previous_reading !== null ? (Number(r.reading) - Number(r.previous_reading)) * Number(r.multiplier) : null;
           return (
             <tr key={r.id} className={r.status === "rejected" ? "text-ink/45" : undefined}>
               <Td className="tabular whitespace-nowrap">{formatDate(r.read_on)}</Td>

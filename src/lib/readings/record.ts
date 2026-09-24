@@ -39,7 +39,11 @@ export async function previousReadings(tx: Sql, meterId: string, before: string)
  */
 export async function recordReading(tx: Sql, r: NewReading): Promise<{ id: string; issues: ReadingIssue[] }> {
   const [prev = null, beforePrev = null] = await previousReadings(tx, r.meterId, r.readOn);
-  const issues = readingIssues(r.reading, r.readOn, prev, beforePrev);
+  // Tarkistukset kuutioina: teollisuusmittarin lukema kerrotaan kertoimella.
+  const [{ multiplier }] = await tx.query<{ multiplier: string }>("select multiplier::text from ml_meters where id = $1", [r.meterId]);
+  const k = Number(multiplier);
+  const scale = (p: PreviousReading | null) => (p ? { ...p, reading: p.reading * k } : null);
+  const issues = readingIssues(r.reading * k, r.readOn, scale(prev), scale(beforePrev));
   const status = issues.length ? "needs_review" : "accepted";
 
   if (r.source === "staff") {

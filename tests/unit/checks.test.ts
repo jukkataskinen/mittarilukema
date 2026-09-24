@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReading, readingIssues } from "@/lib/readings/checks";
+import { meterReadMethod, parseReading, readingIssues } from "@/lib/readings/checks";
 import { formatPhone, normalizePhone } from "@/lib/validation/phone";
 
 describe("lukeman tulkinta", () => {
@@ -48,5 +48,14 @@ describe("puhelinnumero", () => {
   });
   it("näyttömuoto", () => {
     expect(formatPhone("+358401234567")).toBe("040 123 4567");
+  });
+});
+
+describe("mittarityyppi mittarinumerosta", () => {
+  it("kolme merkkiä on vanha, pidempi uusi etäluettava", () => {
+    expect(meterReadMethod("482")).toBe("mechanical");
+    expect(meterReadMethod("21345678")).toBe("remote");
+    expect(meterReadMethod("KM2104A77")).toBe("remote");
+    expect(meterReadMethod("")).toBeNull();
   });
 });

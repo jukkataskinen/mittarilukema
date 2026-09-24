@@ -58,3 +58,14 @@ export const ISSUE_LABEL: Record<ReadingIssue, string> = {
   large: "Poikkeuksellisen suuri kulutus",
   spike: "Kulutus moninkertainen aiempaan",
 };
+
+/**
+ * Joutsan mittarityyppi mittarinumerosta (Jukka 24.9.2026): kolmemerkkinen
+ * numero on vanha mekaaninen mittari, pidempi (voi sisältää kirjaimia) uusi
+ * etäluettava. Tuntematon numero palauttaa null.
+ */
+export function meterReadMethod(meterNumber: string | null | undefined): "remote" | "mechanical" | null {
+  const n = (meterNumber ?? "").replace(/\s/g, "");
+  if (!n) return null;
+  return n.length <= 3 ? "mechanical" : "remote";
+}

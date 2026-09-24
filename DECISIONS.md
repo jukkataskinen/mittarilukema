@@ -33,3 +33,7 @@
 **Asiakastiedostot eivät kuulu repoon.** Tuontiskripti lukee CSV-tiedoston paikaltaan ja tulostaa vain määrät. `.gitignore` estää CSV-tiedostot, ja CI hylkää repon, jossa on asiakastiedoston näköinen tiedosto.
 
 **Auth0: oma sovellus eRapun tenantissa.** Alun perin päätettiin oma tenantti, mutta Auth0:n tenanttiraja olisi vaatinut maksullisen tason. Mittarilukema saa oman sovelluksen eRapun EU-tenanttiin `erappu`. Tämä riittää, koska käyttöoikeudet ratkaistaan Mittarilukeman omassa kannassa (`ml_org_members`): jaettu tenantti jakaa vain kirjautumistunnukset, ei tietoja. eRapun käyttäjä ei näe Mittarilukemassa mitään ennen kuin hänet lisätään organisaatioon. Vain henkilökunta kirjautuu (salasana ja MFA, kuten eRapun henkilökunta).
+
+**Mittarityyppi mittarinumerosta (Joutsa).** Kolmemerkkinen mittarinumero on vanha mekaaninen mittari, pidempi numero (voi sisältää kirjaimia) uusi etäluettava. Tieto on Jukalta 24.9.2026. Fennoan laskuilla ei ole mittarinumeroita, joten laskuista tuoduilla mittareilla lukutapa on vielä mekaaninen oletuksena. Lukutapa korjataan mittarilukema.fi:n varmuuskopiosta funktiolla `meterReadMethod`.
+
+**Fennoan laskuaineisto rekisterin pohjaksi.** Käyttöpaikan tunnus Unes (viisi numeroa) on kiinteistön pysyvä tunnus vanhassa järjestelmässä, ja se tallennetaan `legacy_id`:ksi. Varmuuskopion tuonti yhdistää tiedot tällä tunnuksella. Toukokuun 2026 laskuilla on 387 mittarinvaihtoa.

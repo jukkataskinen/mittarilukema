@@ -109,6 +109,7 @@ export default async function PropertyPage({
                       <p className="text-sm text-ink/60">
                         {READ_METHOD[m.read_method]} · {conn ? CONNECTION_KIND[conn.kind] : ""}
                         {m.location ? ` · ${m.location}` : ""}
+                        {Number(m.multiplier) !== 1 ? ` · kerroin ${formatNumber(m.multiplier)}` : ""}
                       </p>
                     </div>
                     {m.removed_on ? <Badge>Poistettu {formatDate(m.removed_on)}</Badge> : <Badge tone="ok">Käytössä</Badge>}

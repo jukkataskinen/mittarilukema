@@ -15,7 +15,8 @@
     "db:reset": "tsx scripts/db-reset.mts",
     "db:seed:demo": "tsx scripts/seed-demo.mts",
     "db:migrate:remote": "tsx scripts/db/migrate-remote.mts",
-    "tuo:asiakkaat": "tsx scripts/import-customers.mts"
+    "tuo:asiakkaat": "tsx scripts/import-customers.mts",
+    "tuo:laskut": "tsx scripts/import-fennoa-invoices.mts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.11.0",

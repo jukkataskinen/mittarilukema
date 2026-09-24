@@ -124,11 +124,12 @@ export async function getProperty(tx: Sql, orgId: string, id: string) {
     start_reading: string;
     removed_on: string | null;
     final_reading: string | null;
+    multiplier: string;
     last_reading: string | null;
     last_read_on: string | null;
   }>(
     `select m.id, m.connection_id, m.meter_number, m.read_method, m.location, m.installed_on::text,
-            m.start_reading::text, m.removed_on::text, m.final_reading::text,
+            m.start_reading::text, m.removed_on::text, m.final_reading::text, m.multiplier::text,
             r.reading::text as last_reading, r.read_on::text as last_read_on
        from ml_meters m
        join ml_connections k on k.id = m.connection_id
@@ -244,11 +245,12 @@ export interface ReadingRow {
   note: string | null;
   entered_by_name: string | null;
   previous_reading: string | null;
+  multiplier: string;
 }
 
 const READING_SELECT = `
   select r.id, r.meter_id, m.meter_number, p.id as property_id, p.street_address, r.read_on::text, r.reading::text,
-         r.source, r.status, r.issues, r.note, coalesce(u.full_name, u.email) as entered_by_name,
+         r.source, r.status, r.issues, r.note, coalesce(u.full_name, u.email) as entered_by_name, m.multiplier::text,
          (select pr.reading::text from ml_readings pr where pr.meter_id = r.meter_id and pr.status = 'accepted'
              and pr.read_on < r.read_on order by pr.read_on desc limit 1) as previous_reading
     from ml_readings r
