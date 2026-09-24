@@ -5,7 +5,7 @@ import { NavIcon } from "./NavIcon";
 import { NavLink } from "./NavLink";
 import { STAFF_NAV, STAFF_NAV_ORG, type NavItem } from "@/config/nav";
 import { ROLE_LABEL, type StaffContext } from "@/lib/auth/current-user";
-import { switchOrganization } from "@/app/actions/session";
+import { OrgSwitcher } from "./OrgSwitcher";
 
 /**
  * Henkilökunnan kehys eRapun mallin mukaan: sivupalkki työpöydällä,
@@ -26,6 +26,16 @@ export function StaffShell({ ctx, children }: { ctx: StaffContext; children: Rea
           <a href="/kirjaudu/ulos" className="text-sm text-ink/55 hover:text-ink lg:hidden">
             Kirjaudu ulos
           </a>
+        </div>
+        <div className="px-3 pb-3">
+          {ctx.user.memberships.length > 1 ? (
+            <OrgSwitcher
+              current={ctx.org.organizationId}
+              options={ctx.user.memberships.map((m) => ({ id: m.organizationId, name: m.organizationName }))}
+            />
+          ) : (
+            <p className="rounded-xl bg-cloud/70 px-3 py-2 text-sm font-semibold">{ctx.org.organizationName}</p>
+          )}
         </div>
         <form action="/kiinteistot" role="search" className="px-3 pb-2">
           <label htmlFor="nav-search" className="sr-only">
@@ -59,24 +69,7 @@ export function StaffShell({ ctx, children }: { ctx: StaffContext; children: Rea
         </nav>
         <div className="hidden shrink-0 border-t border-line px-5 py-4 text-sm lg:block">
           <p className="truncate font-semibold">{ctx.user.fullName ?? ctx.user.email}</p>
-          <p className="text-ink/55">
-            {ROLE_LABEL[ctx.org.role]} · {ctx.org.organizationName}
-          </p>
-          {ctx.user.memberships.length > 1 ? (
-            <form action={switchOrganization} className="mt-2">
-              <label htmlFor="org-switch" className="sr-only">
-                Organisaatio
-              </label>
-              <select id="org-switch" name="organizationId" defaultValue={ctx.org.organizationId} className="w-full rounded-lg border border-line bg-paper px-2 py-1 text-sm">
-                {ctx.user.memberships.map((m) => (
-                  <option key={m.organizationId} value={m.organizationId}>
-                    {m.organizationName}
-                  </option>
-                ))}
-              </select>
-              <button className="mt-1 text-xs text-sky">Vaihda</button>
-            </form>
-          ) : null}
+          <p className="text-ink/55">{ROLE_LABEL[ctx.org.role]}</p>
           <a href="/kirjaudu/ulos" className="mt-3 inline-block text-ink/55 hover:text-ink">
             Kirjaudu ulos
           </a>
