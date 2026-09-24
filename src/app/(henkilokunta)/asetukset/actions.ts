@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/current-user";
 import { fail, isUniqueViolation, parseForm } from "@/lib/forms";
 import { audit } from "@/lib/audit";
+import { addMember, changeMemberRole, MemberError, removeMember } from "@/lib/members";
 
 const BACK = "/asetukset";
 
@@ -74,6 +75,55 @@ export async function renameAreaAction(formData: FormData) {
     });
   } catch (err) {
     if (isUniqueViolation(err)) fail(BACK, "Samanniminen alue on jo olemassa.");
+    throw err;
+  }
+  revalidatePath(BACK);
+  redirect(BACK);
+}
+
+const roleSchema = z.enum(["owner", "staff", "reader"]);
+
+export async function addMemberAction(formData: FormData) {
+  const ctx = await requireRole("owner");
+  const input = parseForm(
+    z.object({
+      email: z.string().email("Tarkista sähköpostiosoite.").max(200),
+      fullName: z.preprocess((v) => (v === "" ? null : v), z.string().max(200).nullable()),
+      role: roleSchema,
+    }),
+    formData,
+    BACK,
+  );
+  try {
+    await addMember(ctx.db, ctx.user.sub, { organizationId: ctx.org.organizationId, actorId: ctx.user.id, ...input });
+  } catch (err) {
+    if (err instanceof MemberError) fail(BACK, err.message);
+    throw err;
+  }
+  revalidatePath(BACK);
+  redirect(`${BACK}?ilmoitus=kayttaja`);
+}
+
+export async function changeMemberRoleAction(formData: FormData) {
+  const ctx = await requireRole("owner");
+  const input = parseForm(z.object({ userId: z.string().uuid(), role: roleSchema }), formData, BACK);
+  try {
+    await ctx.run((tx) => changeMemberRole(tx, { organizationId: ctx.org.organizationId, actorId: ctx.user.id, ...input }));
+  } catch (err) {
+    if (err instanceof MemberError) fail(BACK, err.message);
+    throw err;
+  }
+  revalidatePath(BACK);
+  redirect(BACK);
+}
+
+export async function removeMemberAction(formData: FormData) {
+  const ctx = await requireRole("owner");
+  const input = parseForm(z.object({ userId: z.string().uuid() }), formData, BACK);
+  try {
+    await ctx.run((tx) => removeMember(tx, { organizationId: ctx.org.organizationId, actorId: ctx.user.id, ...input }));
+  } catch (err) {
+    if (err instanceof MemberError) fail(BACK, err.message);
     throw err;
   }
   revalidatePath(BACK);

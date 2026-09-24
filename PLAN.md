@@ -57,6 +57,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Kirjautuminen: Auth0 (eRapun tenantti, MFA)
 - [x] Tietokannan osoite Verceliin ja ensimmäinen tuotantojulkaisu
 - [x] Organisaatiot ja pääkäyttäjä tuotantokantaan
+- [x] Käyttäjien lisäys, roolit ja poisto Asetuksissa
 - [x] Vercel-projekti
 
 ### Tiedot (vko 43–47)
