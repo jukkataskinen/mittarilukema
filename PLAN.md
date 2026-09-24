@@ -49,7 +49,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 ## Vaiheet
 
 ### Perusta (vko 41)
-- [x] GitHub-repo `jukkataskinen/Mittarilukema` (yksityinen)
+- [x] GitHub-repo `jukkataskinen/mittarilukema` (yksityinen)
 - [x] Suunnitelmatiedostot repoon
 - [ ] Oma Supabase-projekti (ei jaettua `skog`-projektia)
 - [ ] Sovelluksen runko (Next.js, sama pino kuin eRapussa)
