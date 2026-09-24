@@ -46,6 +46,16 @@ export function titleCaseAddress(value: string): string {
     .join(" ");
 }
 
+/**
+ * Joutsan laskutusjaksot laskupäivän kuukauden mukaan. Suuri osa laskujen
+ * lukemariveistä on ilman jaksoa ("Edellinen lukema x - Uusi lukema y"), ja
+ * toimituspäivä on laskun tekopäivä, ei lukemapäivä.
+ */
+export const JOUTSA_PERIOD_BY_INVOICE_MONTH: Record<string, [string, string]> = {
+  "2026-05": ["2025-09-30", "2026-03-31"],
+  "2026-08": ["2025-12-31", "2026-06-30"],
+};
+
 export interface CustomerCandidate {
   id: string;
   name: string;

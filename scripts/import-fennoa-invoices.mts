@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { openTargetDb } from "./lib/target-db.mts";
-import { buildMeterChains, matchCustomer, titleCaseAddress, type CustomerCandidate, type RawReading } from "../src/lib/import/fennoa.ts";
+import { buildMeterChains, JOUTSA_PERIOD_BY_INVOICE_MONTH, matchCustomer, titleCaseAddress, type CustomerCandidate, type RawReading } from "../src/lib/import/fennoa.ts";
 
 /**
  * Fennoan myyntilaskuaineiston tuonti paikalliseen kantaan tai `--tuotanto`-valinnalla Supabaseen.
@@ -47,7 +47,12 @@ const WATER = /^(vesi|kylmävesi|veden|perusmaksu)/i;
 const WASTE = /jäte/i;
 const dayBefore = (iso: string) => new Date(Date.parse(`${iso}T12:00:00Z`) - 864e5).toISOString().slice(0, 10);
 const invDate = (i: Invoice) => i.toimituspvm ?? i.laskupvm ?? "2026-01-01";
-const periodStart = (i: Invoice) => i.lukemat.map((r) => r.jakso_alku).filter((d): d is string => !!d).sort()[0] ?? invDate(i);
+/** Laskun jakso: lukemariviltä tai laskupäivän kuukaudesta. */
+const periodOf = (i: Invoice): [string, string] | null => {
+  const r = i.lukemat.find((x) => x.jakso_alku && x.jakso_loppu);
+  return r ? [r.jakso_alku!, r.jakso_loppu!] : (JOUTSA_PERIOD_BY_INVOICE_MONTH[(i.laskupvm ?? "").slice(0, 7)] ?? null);
+};
+const periodStart = (i: Invoice) => i.lukemat.map((r) => r.jakso_alku).filter((d): d is string => !!d).sort()[0] ?? periodOf(i)?.[0] ?? invDate(i);
 const fmt = (n: number) => n.toLocaleString("fi-FI", { minimumFractionDigits: 2 });
 
 const all: Invoice[] = JSON.parse(await readFile(file, "utf8"));
@@ -187,8 +192,8 @@ try {
           .map(({ r, position }) => ({
             invoice: i.laskunro ?? i.tiedosto.replace(/\D/g, ""),
             position,
-            start: r.jakso_alku ?? null,
-            end: r.jakso_loppu ?? invDate(i),
+            start: r.jakso_alku ?? periodOf(i)?.[0] ?? null,
+            end: r.jakso_loppu ?? periodOf(i)?.[1] ?? invDate(i),
             previous: r.edellinen!,
             current: r.uusi!,
             multiplier: r.kerroin ?? 1,
