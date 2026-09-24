@@ -106,6 +106,11 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                       {i.street_address}
                     </Link>
                     {i.legacy_id ? <span className="block text-xs text-ink/50">Unes {i.legacy_id}</span> : null}
+                    {i.period_start !== run.period_start || i.period_end !== run.period_end ? (
+                      <span className="block text-xs font-semibold text-amber">
+                        {i.period_end !== run.period_end ? "Loppulasku" : "Uusi maksaja"} {formatDate(i.period_start)} – {formatDate(i.period_end)}
+                      </span>
+                    ) : null}
                   </Td>
                   <Td>
                     {i.customer_name ?? <Badge tone="alert">Puuttuu</Badge>}

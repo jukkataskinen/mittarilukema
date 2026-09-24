@@ -65,13 +65,16 @@ export interface InvoiceListRow {
   net_eur: string;
   gross_eur: string;
   issues: string[];
+  period_start: string;
+  period_end: string;
 }
 
 export function listRunInvoices(tx: Sql, orgId: string, runId: string, filter: "all" | "issues" | "excluded" = "all", q?: string) {
   const like = q?.trim() ? `%${q.trim().toLowerCase()}%` : null;
   return tx.query<InvoiceListRow>(
     `select i.id, i.property_id, p.street_address, p.legacy_id, i.customer_id, c.name as customer_name, c.customer_number,
-            i.status, greatest(i.water_m3, i.wastewater_m3)::text as water_m3, i.net_eur::text, i.gross_eur::text, i.issues
+            i.status, greatest(i.water_m3, i.wastewater_m3)::text as water_m3, i.net_eur::text, i.gross_eur::text, i.issues,
+            i.period_start::text, i.period_end::text
        from ml_invoices i
        join ml_properties p on p.id = i.property_id
        left join ml_customers c on c.id = i.customer_id
@@ -79,7 +82,7 @@ export function listRunInvoices(tx: Sql, orgId: string, runId: string, filter: "
         and ($3 = 'all' or ($3 = 'issues' and i.status <> 'excluded' and cardinality(i.issues) > 0) or ($3 = 'excluded' and i.status = 'excluded'))
         and ($4::text is null or lower(p.street_address) like $4 or lower(coalesce(c.name, '')) like $4
              or coalesce(c.customer_number, '') like $4 or coalesce(p.legacy_id, '') like $4)
-      order by p.street_address`,
+      order by p.street_address, i.period_end`,
     [orgId, runId, filter, like],
   );
 }
@@ -96,7 +99,7 @@ export async function getInvoice(tx: Sql, orgId: string, id: string) {
     `select i.id, i.run_id, i.property_id, p.street_address, p.postal_code, p.city, p.legacy_id, i.customer_id, c.name as customer_name,
             c.customer_number, c.billing_street, c.billing_postal_code, c.billing_city, i.status, i.excluded_reason,
             i.water_m3::text, i.wastewater_m3::text, i.net_eur::text, i.vat_eur::text, i.gross_eur::text, i.usage, i.issues, i.info,
-            r.period_start::text, r.period_end::text, r.status as run_status
+            i.period_start::text, i.period_end::text, r.status as run_status
        from ml_invoices i
        join ml_billing_runs r on r.id = i.run_id
        join ml_properties p on p.id = i.property_id
