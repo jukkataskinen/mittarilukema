@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getDb, type Database, type Sql } from "@/lib/db";
 import { getSessionIdentity } from "./session";
+import { resolveUser } from "./resolve-user";
 import { signValue, verifySignedValue } from "@/lib/security/crypto";
 
 export type OrgRole = "owner" | "staff" | "reader";
@@ -37,16 +38,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const db = await getDb();
 
   return db.asService(async (tx) => {
-    let [user] = await tx.query<{ id: string; email: string; full_name: string | null }>(
-      "select id, email, full_name from ml_users where auth_sub = $1",
-      [identity.sub],
-    );
-    if (!user && identity.email) {
-      [user] = await tx.query(
-        "insert into ml_users (auth_sub, email) values ($1, $2) on conflict (auth_sub) do update set email = excluded.email returning id, email, full_name",
-        [identity.sub, identity.email],
-      );
-    }
+    const user = await resolveUser(tx, identity);
     if (!user) return null;
 
     const memberships = await tx.query<{ organization_id: string; name: string; role: OrgRole }>(

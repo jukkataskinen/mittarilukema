@@ -26,6 +26,8 @@ export function devLoginAllowed(): boolean {
 export interface SessionIdentity {
   sub: string;
   email: string | null;
+  /** Auth0 on varmentanut sähköpostin. Vain varmennettu osoite yhdistetään olemassa olevaan käyttäjään. */
+  emailVerified: boolean;
 }
 
 export async function getSessionIdentity(): Promise<SessionIdentity | null> {
@@ -34,9 +36,13 @@ export async function getSessionIdentity(): Promise<SessionIdentity | null> {
     const session = await auth0.getSession();
     const sub = session?.user?.sub;
     if (!sub) return null;
-    return { sub, email: typeof session.user.email === "string" ? session.user.email : null };
+    return {
+      sub,
+      email: typeof session.user.email === "string" ? session.user.email : null,
+      emailVerified: session.user.email_verified === true,
+    };
   }
   if (!devLoginAllowed()) return null;
   const sub = verifySignedValue((await cookies()).get(DEV_SESSION_COOKIE)?.value);
-  return sub ? { sub, email: null } : null;
+  return sub ? { sub, email: null, emailVerified: false } : null;
 }

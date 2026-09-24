@@ -37,3 +37,9 @@
 **Mittarityyppi mittarinumerosta (Joutsa).** Kolmemerkkinen mittarinumero on vanha mekaaninen mittari, pidempi numero (voi sisältää kirjaimia) uusi etäluettava. Tieto on Jukalta 24.9.2026. Fennoan laskuilla ei ole mittarinumeroita, joten laskuista tuoduilla mittareilla lukutapa on vielä mekaaninen oletuksena. Lukutapa korjataan mittarilukema.fi:n varmuuskopiosta funktiolla `meterReadMethod`.
 
 **Fennoan laskuaineisto rekisterin pohjaksi.** Käyttöpaikan tunnus Unes (viisi numeroa) on kiinteistön pysyvä tunnus vanhassa järjestelmässä, ja se tallennetaan `legacy_id`:ksi. Varmuuskopion tuonti yhdistää tiedot tällä tunnuksella. Toukokuun 2026 laskuilla on 387 mittarinvaihtoa.
+
+## 2026-09-25
+
+**Käyttäjä tunnistetaan varmennetulla sähköpostilla.** Pääkäyttäjä lisätään kantaan ennen ensimmäistä kirjautumista (`npm run kayttaja:lisaa`). Kun Auth0 on varmentanut saman sähköpostiosoitteen, käyttäjä yhdistetään esilisättyyn riviin. Samalla tavalla toimii mahdollinen myöhempi siirto omaan Auth0-tenanttiin, jossa tunnisteet vaihtuvat. Varmentamatonta osoitetta ei yhdistetä, jottei tunnusta voi kaapata rekisteröimällä saman osoitteen.
+
+**MFA omalla Actionilla.** eRapun MFA-Action koskee vain eRapun sovellusta, joten Mittarilukemalle tehdään tenanttiin oma post-login Action. eRapun Actionia ei muuteta, koska eRapun asetusskripti kirjoittaa sen uudelleen. eRapun asetusskripti kieltäytyy nyt ajamasta, koska tenantissa on Mittarilukeman sovellus. Se korjataan eRapun repossa erikseen.
