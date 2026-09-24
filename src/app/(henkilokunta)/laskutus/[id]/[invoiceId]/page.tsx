@@ -124,6 +124,17 @@ export default async function InvoicePage({
       </section>
 
       <section className="mt-8">
+        <SectionTitle>Lisätieto laskulla</SectionTitle>
+        <Panel>
+          {i.info ? (
+            <p className="whitespace-pre-line font-mono text-sm">{i.info}</p>
+          ) : (
+            <p className="text-sm text-ink/65">Lisätietoa ei muodostunut, koska kulutusta ei laskettu mittarilukemista.</p>
+          )}
+        </Panel>
+      </section>
+
+      <section className="mt-8">
         <SectionTitle>Kulutuksen peruste</SectionTitle>
         {i.usage.length === 0 ? (
           <p className="text-sm text-ink/65">Kulutusta ei laskettu mittareilta.</p>

@@ -55,6 +55,8 @@ describe("laskutusajo", () => {
       tx.query<{ description: string }>("select description from ml_invoice_lines l join ml_invoices i on i.id = l.invoice_id where i.run_id = $1 order by line_no", [runId]),
     );
     expect(lines.map((l) => l.description)).toEqual(["Vesi", "Jätevesi", "Veden perusmaksu", "Jätevesi perusmaksu"]);
+    const [{ info }] = await db.asUser(a.staff.sub, (tx) => tx.query<{ info: string }>("select info from ml_invoices where run_id = $1", [runId]));
+    expect(info).toBe("Mittari M-1: edellinen lukema 5657 m3, 30.9.2025 - 31.3.2026: 5710 m3, Testitie 1");
   });
 
   it("samalle jaksolle ei synny toista ajoa", async () => {

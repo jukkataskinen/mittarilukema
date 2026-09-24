@@ -2,6 +2,7 @@ import type { Sql } from "@/lib/db/types";
 import { audit } from "@/lib/audit";
 import { calculateBill } from "./calculate";
 import { loadOrgBillingData } from "./load";
+import { invoiceInfo } from "./info";
 
 export class BillingRunError extends Error {}
 
@@ -52,7 +53,7 @@ export async function createBillingRun(
 
   const invoices: {
     property_id: string; customer_id: string | null; contract_id: string | null; water_m3: number; wastewater_m3: number;
-    net_eur: number; vat_eur: number; gross_eur: number; usage: unknown; issues: string[];
+    net_eur: number; vat_eur: number; gross_eur: number; usage: unknown; issues: string[]; info: string | null;
   }[] = [];
   const lines: { property_id: string; line_no: number; kind: string; connection_kind: string; description: string; quantity: number; unit: string; unit_price: number; vat_percent: number; net_eur: number }[] = [];
 
@@ -78,6 +79,7 @@ export async function createBillingRun(
       gross_eur: res.gross,
       usage: res.usage,
       issues,
+      info: invoiceInfo({ usage: res.usage, meters: p.meters, legacyId: p.legacyId, address: p.streetAddress }) || null,
     });
     res.lines.forEach((l, i) =>
       lines.push({
@@ -89,11 +91,11 @@ export async function createBillingRun(
 
   if (invoices.length) {
     const inserted = await tx.query<{ id: string; property_id: string }>(
-      `insert into ml_invoices (organization_id, run_id, property_id, customer_id, contract_id, water_m3, wastewater_m3, net_eur, vat_eur, gross_eur, usage, issues)
+      `insert into ml_invoices (organization_id, run_id, property_id, customer_id, contract_id, water_m3, wastewater_m3, net_eur, vat_eur, gross_eur, usage, issues, info)
        select $1, $2, x.property_id, x.customer_id, x.contract_id, x.water_m3, x.wastewater_m3, x.net_eur, x.vat_eur, x.gross_eur, x.usage,
-              array(select json_array_elements_text(x.issues))
+              array(select json_array_elements_text(x.issues)), x.info
          from json_to_recordset($3::json) as x(property_id uuid, customer_id uuid, contract_id uuid, water_m3 numeric, wastewater_m3 numeric,
-              net_eur numeric, vat_eur numeric, gross_eur numeric, usage jsonb, issues json)
+              net_eur numeric, vat_eur numeric, gross_eur numeric, usage jsonb, issues json, info text)
        returning id, property_id`,
       [orgId, run.id, JSON.stringify(invoices)],
     );
