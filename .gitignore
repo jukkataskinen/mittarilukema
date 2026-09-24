@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.vercel/
+.env
+.env*.local
+
+# Henkilötietoja sisältävät tiedostot (varmuuskopiot, viennit) eivät kuulu gittiin
+data/private/
+*.sql.gz
+*.dump
+*.bak
