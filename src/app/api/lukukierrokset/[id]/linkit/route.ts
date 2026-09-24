@@ -18,9 +18,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const ctx = await requireStaff();
   if (!ctx.can("owner", "staff")) return new NextResponse("Kielletty", { status: 403 });
 
+  const onlyMissing = (await request.formData().catch(() => null))?.get("puuttuvat") === "1";
   let links;
   try {
-    links = await ctx.run((tx) => createRoundLinks(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, roundId: id }));
+    links = await ctx.run((tx) => createRoundLinks(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, roundId: id, onlyMissing }));
   } catch (err) {
     return new NextResponse(err instanceof Error ? err.message : "Virhe", { status: 400 });
   }
@@ -35,7 +36,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="lukemalinkit.csv"`,
+      "Content-Disposition": `attachment; filename="${onlyMissing ? "muistutukset" : "lukemalinkit"}.csv"`,
       "Cache-Control": "no-store",
     },
   });

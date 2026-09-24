@@ -19,14 +19,23 @@ export interface CreatedLink {
   token: string;
 }
 
+/** Lukema katsotaan kierroksen lukemaksi, jos se on enintään näin monta päivää ennen lukemapäivää. */
+export const ROUND_EARLY_DAYS = 14;
+
 /**
  * Linkit kierroksen kaikille käytössä oleville mittareille. Token palautetaan
  * vain tässä: kantaan menee tiiviste. Uudelleenluonti korvaa aiemmat linkit,
  * joten tiedosto on ladattava ja lähetettävä samasta luonnista.
+ *
+ * `onlyMissing`: vain mittarit, joilta kierroksen lukema vielä puuttuu
+ * (muistutus). Muiden mittarien linkit pysyvät ennallaan.
  */
-export async function createRoundLinks(tx: Sql, input: { organizationId: string; userId: string; roundId: string }): Promise<CreatedLink[]> {
-  const [round] = await tx.query<{ due_date: string; status: string }>(
-    "select due_date::text, status from ml_reading_rounds where id = $1 and organization_id = $2",
+export async function createRoundLinks(
+  tx: Sql,
+  input: { organizationId: string; userId: string; roundId: string; onlyMissing?: boolean },
+): Promise<CreatedLink[]> {
+  const [round] = await tx.query<{ due_date: string; target_date: string; status: string }>(
+    "select due_date::text, target_date::text, status from ml_reading_rounds where id = $1 and organization_id = $2",
     [input.roundId, input.organizationId],
   );
   if (!round) throw new Error("Kierrosta ei löytynyt.");
@@ -47,8 +56,11 @@ export async function createRoundLinks(tx: Sql, input: { organizationId: string;
           limit 1) c on true
        left join ml_customers cu on cu.id = c.customer_id
       where m.organization_id = $1 and m.removed_on is null
+        and (not $2::boolean or not exists (
+             select 1 from ml_readings r where r.meter_id = m.id and r.status <> 'rejected'
+                and (r.round_id = $3 or r.read_on >= $4::date - $5::int)))
       order by p.street_address`,
-    [input.organizationId],
+    [input.organizationId, input.onlyMissing ?? false, input.roundId, round.target_date, ROUND_EARLY_DAYS],
   );
 
   const expires = new Date(Date.parse(`${round.due_date}T23:59:59+03:00`) + LINK_GRACE_DAYS * 86_400_000).toISOString();
@@ -72,7 +84,7 @@ export async function createRoundLinks(tx: Sql, input: { organizationId: string;
   }
   await audit(tx, {
     organizationId: input.organizationId, userId: input.userId, action: "reading_links.create", entity: "ml_reading_rounds",
-    entityId: input.roundId, details: { links: rows.length },
+    entityId: input.roundId, details: { links: rows.length, onlyMissing: input.onlyMissing ?? false },
   });
   return out;
 }

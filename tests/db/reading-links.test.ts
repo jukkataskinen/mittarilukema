@@ -69,6 +69,13 @@ describe("lukemalinkit", () => {
     expect(view?.submitted).toEqual({ reading: 165.5, readOn: "2026-09-02" });
   });
 
+  it("muistutuslista: mittari, jolla on jo kierroksen lukema, jää pois", async () => {
+    const missing = await db.asUser(a.staff.sub, (tx) => createRoundLinks(tx, { organizationId: a.id, userId: a.staff.id, roundId: roundA, onlyMissing: true }));
+    expect(missing).toHaveLength(0);
+    // Aiempi linkki pysyy voimassa, koska sitä ei luotu uudelleen.
+    expect(await db.asService((tx) => resolveLink(tx, token))).not.toBeNull();
+  });
+
   it("uudelleenluonti korvaa vanhan linkin", async () => {
     await db.asUser(a.staff.sub, (tx) => createRoundLinks(tx, { organizationId: a.id, userId: a.staff.id, roundId: roundA }));
     expect(await db.asService((tx) => resolveLink(tx, token))).toBeNull();

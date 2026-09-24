@@ -78,6 +78,12 @@ export default async function ReadingsPage({ searchParams }: { searchParams: Pro
                             Lataa lukemalinkit (CSV)
                           </Button>
                         </form>
+                        <form method="post" action={`/api/lukukierrokset/${r.id}/linkit`}>
+                          <input type="hidden" name="puuttuvat" value="1" />
+                          <Button variant="secondary" title="Vain mittarit, joilta kierroksen lukema puuttuu; uudet linkit korvaavat niiden aiemmat">
+                            Muistutuslista (CSV)
+                          </Button>
+                        </form>
                         <form action={closeRoundAction}>
                           <input type="hidden" name="roundId" value={r.id} />
                           <Button variant="secondary">Sulje</Button>
