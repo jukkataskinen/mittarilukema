@@ -73,7 +73,9 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [~] Tekstiviestilukemat: vastaanotto, tulkinta, yhdistäminen asiakkaaseen ja käsittelynäkymä valmiit; palveluntarjoaja ja numeron siirto auki (BLOCKERS 2)
 - [x] Poikkeavien lukemien tarkistus ja hyväksyntä
 - [x] Lukukierrokset
-- [ ] Muistutusviestit
+- [~] Muistutukset: muistutuslista (CSV) mittareista, joilta lukema puuttuu; lähetys odottaa tekstiviestipalvelua (BLOCKERS 2)
+- [x] Kierroksen lukulista: lukemien massakirjaus toimistolle ja mittarinlukijalle
+- [x] Mittarin tietojen muokkaus (numero, lukutapa, sijainti, kerroin)
 - [x] Lukemalomake linkillä ilman kirjautumista (linkit CSV:nä kierrokselta)
 
 ### Laskutus (Joutsa vko 50, Kärkinen aloituksen mukaan)

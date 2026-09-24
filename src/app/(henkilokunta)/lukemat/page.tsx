@@ -65,7 +65,9 @@ export default async function ReadingsPage({ searchParams }: { searchParams: Pro
                 {rounds.map((r) => (
                   <li key={r.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
                     <div>
-                      <p className="font-semibold">{r.name}</p>
+                      <Link href={`/lukemat/kierros/${r.id}`} className="font-semibold hover:text-sky">
+                        {r.name}
+                      </Link>
                       <p className="text-sm text-ink/60">
                         Lukemat {formatDate(r.target_date)}, viimeistään {formatDate(r.due_date)} · {r.reading_count} lukemaa
                       </p>

@@ -79,7 +79,9 @@ export default async function Dashboard() {
               <ul className="divide-y divide-line">
                 {rounds.map((r) => (
                   <li key={r.id} className="py-2.5 first:pt-0 last:pb-0">
-                    <p className="font-semibold">{r.name}</p>
+                    <Link href={`/lukemat/kierros/${r.id}`} className="font-semibold hover:text-sky">
+                      {r.name}
+                    </Link>
                     <p className="text-sm text-ink/60">
                       Lukemat {formatDate(r.target_date)}, viimeistään {formatDate(r.due_date)} · {r.reading_count} lukemaa
                     </p>
