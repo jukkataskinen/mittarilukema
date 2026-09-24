@@ -28,30 +28,51 @@ Merkinnät: `[x]` valmis, `[ ]` tekemättä, `[~]` kesken tai odottaa estettä (
 - **Laskutustapa ja -jakso**: organisaation asetus, joka voi poiketa kiinteistökohtaisesti.
 - **Lasku** ja **laskurivit** → Fennoa.
 
+## Aikataulu (arvio 24.9.2026)
+
+Oletus: osa-aikainen työ kuten eRapussa, varmuuskopio ja tekstiviestitiedot saadaan 1–2 viikossa. Aikataulun määräävät Joutsan laskutuskierrokset: syyskuu 2026 laskutetaan vielä vanhalla ohjelmalla, seuraava kierros on maaliskuu 2027. Ennen sitä syyskuun 2026 laskut lasketaan uudelleen varmuuskopion tiedoista ja verrataan vanhan ohjelman laskuihin.
+
+| Vaihe | Työmäärä | Tavoite |
+|---|---|---|
+| Perusta | 3–5 pv | vko 41 |
+| Tietomalli ja tiedonsiirto | 1–2 vk | vko 43–44 |
+| Ylläpitonäkymät | 2–3 vk | vko 46–47 |
+| Lukemat (tekstiviesti, lomake, muistutukset) | 1,5–2 vk | vko 48 |
+| Joutsan laskutus ja Fennoa-vienti testiin | 2–3 vk | vko 50 |
+| Vertailu syyskuun 2026 laskuihin | 1–2 vk | tammikuun puoliväli 2027 |
+| Etäluettavien tuonti | ~1 vk | helmikuu 2027 |
+| Rinnakkaisajo ja siirtyminen (Joutsa) | – | maalis–huhtikuu 2027 |
+| Kärkisen laskutus | 1,5–2 vk | Kärkisen aloituksen mukaan, aikaisintaan tammikuu 2027 |
+
+Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi viedä 1–2 vk lisää; vanhan kannan tietojen siivous voi viedä 1–2 vk lisää; Fennoan testiympäristön pääsy varmistettava ennen joulukuuta.
+
 ## Vaiheet
 
-### Perusta
+### Perusta (vko 41)
 - [x] GitHub-repo `jukkataskinen/Mittarilukema` (yksityinen)
 - [x] Suunnitelmatiedostot repoon
 - [ ] Oma Supabase-projekti (ei jaettua `skog`-projektia)
 - [ ] Sovelluksen runko (Next.js, sama pino kuin eRapussa)
 - [ ] Vercel-projekti
 
-### Tiedot
+### Tiedot (vko 43–47)
 - [~] mittarilukema.fi:n varmuuskopio ja tietokannan rakenne (BLOCKERS 1)
 - [ ] Tietomalli ja migraatiot
 - [ ] Tiedonsiirto mittarilukema.fi:stä kopioon
+- [ ] Ylläpitonäkymät: kiinteistöt, mittarit, asiakkaat, sopimukset, hinnasto
 
-### Lukemat
+### Lukemat (vko 48, etäluettavat helmikuu 2027)
 - [ ] Etäluettavien mittarien lukemien tuonti (BLOCKERS 4)
 - [~] Tekstiviestilukemat, sama numero ja palvelu kuin nyt (BLOCKERS 2)
 - [ ] Muistutusviestit ja poikkeavien lukemien tarkistus
 
-### Laskutus
+### Laskutus (Joutsa vko 50, Kärkinen aloituksen mukaan)
 - [ ] Toteutuneen kulutuksen laskutus (Joutsa)
 - [ ] Arviolasku ja vuositasaus (Kärkinen)
 - [ ] Laskujen vienti Fennoaan (testiympäristöön, ei tuotantoon)
 
-### Käyttöönotto
-- [ ] Rinnakkaisajo mittarilukema.fi:n kanssa, tulosten vertailu
+### Käyttöönotto (maalis–huhtikuu 2027)
+- [ ] Syyskuun 2026 laskujen uudelleenlaskenta ja vertailu (tammikuu 2027)
+- [ ] Fennoan testiympäristön pääsy (ennen joulukuuta)
+- [ ] Rinnakkaisajo mittarilukema.fi:n kanssa maaliskuun 2027 laskutuksessa, tulosten vertailu
 - [ ] Siirtyminen, domainin mittarilukema.fi uudelleenohjaus
