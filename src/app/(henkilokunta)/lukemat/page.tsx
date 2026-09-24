@@ -61,10 +61,18 @@ export default async function ReadingsPage({ searchParams }: { searchParams: Pro
                       </p>
                     </div>
                     {r.status === "open" && canManage ? (
-                      <form action={closeRoundAction}>
-                        <input type="hidden" name="roundId" value={r.id} />
-                        <Button variant="secondary">Sulje</Button>
-                      </form>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {/* Tavallinen POST-lomake: vastaus on ladattava tiedosto, ei sivu. */}
+                        <form method="post" action={`/api/lukukierrokset/${r.id}/linkit`}>
+                          <Button variant="secondary" title="Luo jokaiselle mittarille uuden linkin ja korvaa aiemmat">
+                            Lataa lukemalinkit (CSV)
+                          </Button>
+                        </form>
+                        <form action={closeRoundAction}>
+                          <input type="hidden" name="roundId" value={r.id} />
+                          <Button variant="secondary">Sulje</Button>
+                        </form>
+                      </div>
                     ) : (
                       <span className="text-sm text-ink/55">{r.status === "open" ? "Avoin" : "Suljettu"}</span>
                     )}

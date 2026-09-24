@@ -74,7 +74,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Poikkeavien lukemien tarkistus ja hyväksyntä
 - [x] Lukukierrokset
 - [ ] Muistutusviestit
-- [ ] Lukemalomake linkillä ilman kirjautumista
+- [x] Lukemalomake linkillä ilman kirjautumista (linkit CSV:nä kierrokselta)
 
 ### Laskutus (Joutsa vko 50, Kärkinen aloituksen mukaan)
 - [x] Toteutuneen kulutuksen laskutus (Joutsa): laskentamoottori, vertailu Fennoan laskuihin (853 täsmää) ja laskutusajo tarkistuksineen
