@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Badge, Button, EmptyState, Input, Notice, PageHeader, Stat, Table, Tabs, Td, Th } from "@/components/ui";
 import { FormError } from "@/components/FormError";
 import { requireRole } from "@/lib/auth/current-user";
-import { getRun, listRunInvoices, scopeLabel } from "@/lib/billing/queries";
+import { getRun, listRunInvoices, RUN_KIND, scopeLabel } from "@/lib/billing/queries";
 import { formatDate, formatDateTime, formatEur, formatNumber } from "@/lib/format";
 import { approveRunAction, deleteRunAction } from "../actions";
 
@@ -35,7 +35,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     <>
       <PageHeader
         title={`Laskutus ${formatDate(run.period_start)} – ${formatDate(run.period_end)}`}
-        subtitle={[scopeLabel(run), run.note].filter(Boolean).join(" · ")}
+        subtitle={[RUN_KIND[run.kind], scopeLabel(run), run.note].filter(Boolean).join(" · ")}
         back={{ href: "/laskutus", label: "Laskutus" }}
         actions={draft ? <Badge tone="warn">Luonnos</Badge> : <Badge tone="ok">Hyväksytty</Badge>}
       />

@@ -5,6 +5,7 @@ export interface RunRow {
   period_start: string;
   period_end: string;
   status: "draft" | "approved";
+  kind: "actual" | "estimate" | "settlement";
   scope: "all" | "area" | "no_area" | "except_area";
   area_id: string | null;
   area_name: string | null;
@@ -22,7 +23,7 @@ export interface RunRow {
 }
 
 const RUN_SELECT = `
-  select r.id, r.period_start::text, r.period_end::text, r.status, r.scope, r.area_id, a.name as area_name, r.note, r.created_at, r.approved_at,
+  select r.id, r.period_start::text, r.period_end::text, r.status, r.kind, r.scope, r.area_id, a.name as area_name, r.note, r.created_at, r.approved_at,
          coalesce(cu.full_name, cu.email) as created_by_name, coalesce(au.full_name, au.email) as approved_by_name,
          count(i.id)::int as invoices,
          count(i.id) filter (where i.status = 'excluded')::int as excluded,
@@ -44,6 +45,12 @@ export async function getRun(tx: Sql, orgId: string, id: string) {
   const [run] = await tx.query<RunRow>(`${RUN_SELECT} where r.organization_id = $1 and r.id = $2 group by r.id, cu.id, au.id, a.id`, [orgId, id]);
   return run ?? null;
 }
+
+export const RUN_KIND: Record<RunRow["kind"], string> = {
+  actual: "Toteutunut kulutus",
+  estimate: "Arviolasku",
+  settlement: "Tasaus",
+};
 
 export function scopeLabel(r: Pick<RunRow, "scope" | "area_name">): string {
   if (r.scope === "all") return "Kaikki kiinteistöt";
@@ -108,7 +115,7 @@ export async function getInvoice(tx: Sql, orgId: string, id: string) {
     [orgId, id],
   );
   if (!invoice) return null;
-  const lines = await tx.query<{ line_no: number; description: string; quantity: string; unit: "m3" | "month"; unit_price: string; vat_percent: string; net_eur: string }>(
+  const lines = await tx.query<{ line_no: number; description: string; quantity: string; unit: "m3" | "month" | "year"; unit_price: string; vat_percent: string; net_eur: string }>(
     "select line_no, description, quantity::text, unit, unit_price::text, vat_percent::text, net_eur::text from ml_invoice_lines where invoice_id = $1 order by line_no",
     [id],
   );

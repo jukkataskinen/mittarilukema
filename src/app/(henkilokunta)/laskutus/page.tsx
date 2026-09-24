@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Badge, Button, EmptyState, Field, Input, Notice, PageHeader, Panel, SectionTitle, Select, Table, Td, Th } from "@/components/ui";
 import { FormError } from "@/components/FormError";
 import { requireRole } from "@/lib/auth/current-user";
-import { listRuns, scopeLabel } from "@/lib/billing/queries";
+import { listRuns, RUN_KIND, scopeLabel } from "@/lib/billing/queries";
 import { listAreas } from "@/lib/registry/queries";
 import { formatDate, formatEur, formatNumber, isoDateHelsinki } from "@/lib/format";
 import { createRunAction } from "./actions";
@@ -48,10 +48,11 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
       <PageHeader title="Laskutus" subtitle="Laskutusajo laskee jakson laskut kaikille kiinteistöille. Laskut tarkistetaan täällä, eikä mitään lähetetä Fennoaan." />
       <FormError message={sp.virhe} />
 
-      {org.billing_method !== "actual" ? (
+      {org.billing_method === "estimate" ? (
         <div className="mb-6">
-          <Notice tone="warn" title="Arviolaskutus ei ole vielä käytössä">
-            Laskutusajo laskee toteutuneen kulutuksen. Arviolaskut ja vuositasaus tulevat myöhemmin.
+          <Notice tone="info" title="Arviolaskutus">
+            Arviolasku tehdään kuukausittain edellisen vuoden kulutuksesta tai kiinteistölle annetusta arviosta. Tasaus laskee todellisen kulutuksen
+            ja vähentää siitä jakson hyväksytyillä arviolaskuilla laskutetun määrän.
           </Notice>
         </div>
       ) : null}
@@ -65,6 +66,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <thead>
               <tr>
                 <Th>Jakso</Th>
+                <Th>Laji</Th>
                 <Th>Kiinteistöt</Th>
                 <Th>Tila</Th>
                 <Th numeric>Laskuja</Th>
@@ -82,6 +84,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                       {formatDate(r.period_start)} – {formatDate(r.period_end)}
                     </Link>
                   </Td>
+                  <Td>{RUN_KIND[r.kind]}</Td>
                   <Td>{scopeLabel(r)}</Td>
                   <Td>{r.status === "approved" ? <Badge tone="ok">Hyväksytty</Badge> : <Badge tone="warn">Luonnos</Badge>}</Td>
                   <Td numeric>
@@ -109,6 +112,15 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
             <Field label="Jakson loppu" htmlFor="periodEnd" hint="Lukemat kelpaavat 60 päivän ajan tämän jälkeen.">
               <Input id="periodEnd" name="periodEnd" type="date" defaultValue={end} required />
             </Field>
+            <div className="sm:col-span-2">
+              <Field label="Laskun laji" htmlFor="kind">
+                <Select id="kind" name="kind" defaultValue={org.billing_method === "estimate" ? "estimate" : "actual"}>
+                  <option value="actual">{RUN_KIND.actual}</option>
+                  <option value="estimate">{RUN_KIND.estimate} (jakso yleensä kuukausi)</option>
+                  <option value="settlement">{RUN_KIND.settlement} (arviolaskujen jakso)</option>
+                </Select>
+              </Field>
+            </div>
             <div className="sm:col-span-2">
               <Field label="Kiinteistöt" htmlFor="scope" hint="Alue, jolla on eri laskutusjakso (esim. Rutalahti), ajetaan omana ajonaan.">
                 <Select id="scope" name="scope" defaultValue={defaultScope}>

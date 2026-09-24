@@ -62,11 +62,11 @@ await db.asService(async (tx) => {
         [orgId, areas[i % areas.length], street, postal, city],
       );
       const [{ id: water }] = await tx.query<{ id: string }>(
-        "insert into ml_connections (organization_id, property_id, kind, connected_on) values ($1, $2, 'water', '2005-06-01') returning id",
+        "insert into ml_connections (organization_id, property_id, kind, connected_on, fee_class) values ($1, $2, 'water', '2005-06-01', 'okt') returning id",
         [orgId, property],
       );
       if (i % 4 !== 3) {
-        await tx.query("insert into ml_connections (organization_id, property_id, kind, connected_on) values ($1, $2, 'wastewater', '2008-06-01')", [
+        await tx.query("insert into ml_connections (organization_id, property_id, kind, connected_on, fee_class) values ($1, $2, 'wastewater', '2008-06-01', 'okt')", [
           orgId,
           property,
         ]);
@@ -108,11 +108,11 @@ await db.asService(async (tx) => {
       }
     }
     await tx.query(
-      `insert into ml_tariffs (organization_id, charge_type, connection_kind, name, unit, price_eur, valid_from) values
-         ($1, 'usage_fee', 'water', 'Käyttömaksu, vesi', 'm3', 1.90, '2026-01-01'),
-         ($1, 'usage_fee', 'wastewater', 'Käyttömaksu, jätevesi', 'm3', 3.10, '2026-01-01'),
-         ($1, 'basic_fee', 'water', 'Perusmaksu, vesi', 'month', 9.50, '2026-01-01'),
-         ($1, 'basic_fee', 'wastewater', 'Perusmaksu, jätevesi', 'month', 12.00, '2026-01-01')`,
+      `insert into ml_tariffs (organization_id, charge_type, connection_kind, fee_class, name, unit, price_eur, valid_from) values
+         ($1, 'usage_fee', 'water', null, 'Käyttömaksu, vesi', 'm3', 1.90, '2024-01-01'),
+         ($1, 'usage_fee', 'wastewater', null, 'Käyttömaksu, jätevesi', 'm3', 3.10, '2024-01-01'),
+         ($1, 'basic_fee', 'water', 'okt', 'Perusmaksu, vesi', 'month', 9.50, '2024-01-01'),
+         ($1, 'basic_fee', 'wastewater', 'okt', 'Perusmaksu, jätevesi', 'month', 12.00, '2024-01-01')`,
       [orgId],
     );
     await tx.query(

@@ -6,6 +6,8 @@ export interface PropertyBillingData {
   legacyId: string | null;
   streetAddress: string;
   areaId: string | null;
+  /** Käsin annettu vuosikulutusarvio (uusi liittymä, arviolaskutus). */
+  estimatedAnnualM3: number | null;
   connections: BillingConnection[];
   meters: BillingMeter[];
 }
@@ -15,8 +17,8 @@ export interface PropertyBillingData {
  * käsittelevät satoja kiinteistöjä kerralla. Vain hyväksytyt lukemat.
  */
 export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ properties: Map<string, PropertyBillingData>; tariffs: BillingTariff[] }> {
-  const props = await tx.query<{ id: string; legacy_id: string | null; street_address: string; area_id: string | null }>(
-    "select id, legacy_id, street_address, area_id from ml_properties where organization_id = $1",
+  const props = await tx.query<{ id: string; legacy_id: string | null; street_address: string; area_id: string | null; estimated_annual_m3: string | null }>(
+    "select id, legacy_id, street_address, area_id, estimated_annual_m3::text from ml_properties where organization_id = $1",
     [orgId],
   );
   const conns = await tx.query<{ id: string; property_id: string; kind: "water" | "wastewater"; fee_class: string | null; connected_on: string; disconnected_on: string | null }>(
@@ -45,7 +47,10 @@ export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ prop
   );
 
   const properties = new Map<string, PropertyBillingData>(
-    props.map((p) => [p.id, { propertyId: p.id, legacyId: p.legacy_id, streetAddress: p.street_address, areaId: p.area_id, connections: [], meters: [] }]),
+    props.map((p) => [p.id, {
+        propertyId: p.id, legacyId: p.legacy_id, streetAddress: p.street_address, areaId: p.area_id,
+        estimatedAnnualM3: p.estimated_annual_m3 === null ? null : Number(p.estimated_annual_m3), connections: [], meters: [],
+      }]),
   );
   for (const c of conns) {
     properties.get(c.property_id)?.connections.push({

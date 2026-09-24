@@ -18,6 +18,7 @@ export async function createRunAction(formData: FormData) {
       note: z.preprocess(emptyToNull, z.string().max(500).nullable()),
       // "all", "no_area", "area:<id>" tai "except:<id>"
       scope: z.string().regex(/^(all|no_area|(area|except):[0-9a-f-]{36})$/, "Valitse kiinteistöt."),
+      kind: z.enum(["actual", "estimate", "settlement"]),
     }),
     formData,
     "/laskutus",

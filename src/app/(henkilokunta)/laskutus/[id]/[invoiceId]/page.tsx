@@ -11,7 +11,7 @@ import { excludeInvoiceAction } from "../../actions";
 export const metadata = { title: "Lasku" };
 
 const priceFmt = new Intl.NumberFormat("fi-FI", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
-const UNIT = { m3: "m³", month: "kk" } as const;
+const UNIT = { m3: "m³", month: "kk", year: "v" } as const;
 
 export default async function InvoicePage({
   params,

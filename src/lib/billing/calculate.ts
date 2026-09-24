@@ -16,6 +16,11 @@
  * - Hinnanmuutos kesken jakson: perusmaksu kuukauden alun hinnalla,
  *   käyttömaksu jaetaan päivien suhteessa.
  * - Hinnat ilman arvonlisäveroa, rivin veroton summa pyöristetään senteille.
+ * - Lisäperusmaksu ja lainaosuus kuukausittain, jos niille on hinta (Kärkinen).
+ *
+ * Tilat: `actual` = toteutunut kulutus (Joutsa), `estimate` = arviolasku
+ * annetulla arviokulutuksella, `settlement` = tasaus: todellinen kulutus
+ * miinus arviolaskuilla laskutettu määrä, ilman perusmaksuja.
  */
 
 export type ConnectionKind = "water" | "wastewater";
@@ -71,14 +76,19 @@ export interface BillingInput {
   tariffs: BillingTariff[];
   /** Kuinka monen päivän päähän jakson lopusta lukema kelpaa (ilmoitukset tulevat viiveellä). */
   readingWindowDays?: number;
+  mode?: "actual" | "estimate" | "settlement";
+  /** estimate: jakson arvioitu kulutus m³. */
+  estimateM3?: number;
+  /** settlement: arviolaskuilla jo laskutettu kulutus m³. */
+  billedEstimateM3?: number;
 }
 
 export interface BillingLine {
-  kind: "usage" | "basic_fee";
-  connectionKind: ConnectionKind;
+  kind: "usage" | "basic_fee" | "other_fee";
+  connectionKind: ConnectionKind | null;
   description: string;
   quantity: number;
-  unit: "m3" | "month";
+  unit: "m3" | "month" | "year";
   unitPrice: number;
   vatPercent: number;
   net: number;
@@ -172,6 +182,7 @@ export function meterUsage(meter: BillingMeter, start: string, end: string, wind
 
 export function calculateBill(input: BillingInput): BillingResult {
   const { periodStart: start, periodEnd: end, areaId } = input;
+  const mode = input.mode ?? "actual";
   const issues: string[] = [];
   const lines: BillingLine[] = [];
   const usage: MeterUsage[] = [];
@@ -182,6 +193,7 @@ export function calculateBill(input: BillingInput): BillingResult {
 
   // --- Kulutus ---
   let metered = 0;
+  if (mode !== "estimate") {
   const measuringKind: ConnectionKind | null = water ? "water" : waste ? "wastewater" : null;
   for (const m of input.meters) {
     const conn = connById.get(m.connectionId);
@@ -196,8 +208,13 @@ export function calculateBill(input: BillingInput): BillingResult {
     metered += Math.max(0, u.m3);
   }
   if (measuringKind && usage.length === 0) issues.push("Kiinteistöllä ei ole mittaria jaksolla.");
-  const waterM3 = water ? round3(metered) : 0;
-  const wastewaterM3 = waste ? round3(metered) : 0;
+  }
+  // Laskutettava määrä: arvio, toteutunut tai tasauksessa erotus (voi olla negatiivinen = hyvitys).
+  const billable =
+    mode === "estimate" ? round3(input.estimateM3 ?? 0) : mode === "settlement" ? round3(metered - (input.billedEstimateM3 ?? 0)) : round3(metered);
+  const waterM3 = water ? billable : 0;
+  const wastewaterM3 = waste ? billable : 0;
+  const suffix = mode === "estimate" ? ", arvio" : mode === "settlement" ? ", tasaus" : "";
 
   // Käyttömaksu: jaetaan päivien suhteessa, jos hinta muuttuu kesken jakson.
   const days = toDay(end) - toDay(start);
@@ -221,11 +238,11 @@ export function calculateBill(input: BillingInput): BillingResult {
       lines.push({ kind: "usage", connectionKind: kind, description: label, quantity: q, unit: "m3", unitPrice: p.t.priceEur, vatPercent: p.t.vatPercent, net: round2(q * p.t.priceEur) });
     });
   };
-  if (water) usageLines("water", waterM3, "Vesi");
-  if (waste) usageLines("wastewater", wastewaterM3, "Jätevesi");
+  if (water) usageLines("water", waterM3, `Vesi${suffix}`);
+  if (waste) usageLines("wastewater", wastewaterM3, `Jätevesi${suffix}`);
 
-  // --- Perusmaksut kuukausittain ---
-  for (const c of [water, waste]) {
+  // --- Perusmaksut kuukausittain (ei tasauksessa: ne on laskutettu arviolaskuilla) ---
+  for (const c of mode === "settlement" ? [] : [water, waste]) {
     if (!c) continue;
     const label = c.kind === "water" ? "Veden perusmaksu" : "Jätevesi perusmaksu";
     if (!c.feeClass) {
@@ -248,7 +265,62 @@ export function calculateBill(input: BillingInput): BillingResult {
     }
   }
 
+  // --- Muut kuukausimaksut: lisäperusmaksu ja lainaosuus, jos hinnastossa ---
+  if (mode !== "settlement" && (water || waste)) {
+    const conns = [water, waste].filter((c): c is BillingConnection => !!c);
+    const months = billingMonths(start, end).filter((first) =>
+      conns.some((c) => c.connectedOn < addDays(first, 1) && (c.disconnectedOn === null || c.disconnectedOn >= first)),
+    );
+    const groups = new Map<string, { t: BillingTariff; n: number }>();
+    for (const first of months) {
+      for (const t of input.tariffs) {
+        if (t.chargeType !== "extra_basic_fee" && t.chargeType !== "loan_share") continue;
+        if (t.validFrom > first || (t.validTo !== null && t.validTo < first)) continue;
+        if (t.areaId !== null && t.areaId !== areaId) continue;
+        if (t.connectionKind !== null && !conns.some((c) => c.kind === t.connectionKind)) continue;
+        if (t.unit !== "month" && t.unit !== "year") continue;
+        const key = `${t.chargeType}|${t.name}|${t.priceEur}|${t.unit}`;
+        groups.set(key, { t, n: (groups.get(key)?.n ?? 0) + 1 });
+      }
+    }
+    for (const g of groups.values()) {
+      // Vuosimaksu jaetaan kuukausille: määrä on kuukausien osuus vuodesta.
+      const quantity = g.t.unit === "year" ? Math.round((g.n / 12) * 10000) / 10000 : g.n;
+      lines.push({
+        kind: "other_fee", connectionKind: g.t.connectionKind, description: g.t.name, quantity, unit: g.t.unit as "month" | "year",
+        unitPrice: g.t.priceEur, vatPercent: g.t.vatPercent, net: round2(quantity * g.t.priceEur),
+      });
+    }
+  }
+
   const net = round2(lines.reduce((s, l) => s + l.net, 0));
   const vat = round2(lines.reduce((s, l) => s + (l.net * l.vatPercent) / 100, 0));
   return { lines, usage, waterM3, wastewaterM3, net, vat, gross: round2(net + vat), issues };
+}
+
+/**
+ * Vuosikulutusarvio lukemista: noin vuoden (enintään 400 päivää) ajalta
+ * mitattu kulutus vuoden mittaiseksi skaalattuna. Vähintään puolen vuoden
+ * jakso, muuten null (uudelle liittymälle arvio annetaan käsin).
+ */
+export function estimateAnnualM3(meters: BillingMeter[], asOf: string): number | null {
+  let consumption = 0;
+  let first: string | null = null;
+  let last: string | null = null;
+  for (const m of meters) {
+    const points: BillingReading[] = [{ readOn: m.installedOn, reading: m.startReading }, ...m.readings]
+      .filter((p) => p.readOn <= asOf && toDay(asOf) - toDay(p.readOn) <= 400)
+      .sort((a, b) => a.readOn.localeCompare(b.readOn));
+    if (m.removedOn && m.finalReading !== null && m.removedOn <= asOf && toDay(asOf) - toDay(m.removedOn) <= 400 && !points.some((p) => p.readOn === m.removedOn)) {
+      points.push({ readOn: m.removedOn, reading: m.finalReading });
+    }
+    if (points.length < 2) continue;
+    consumption += Math.max(0, (points[points.length - 1].reading - points[0].reading) * m.multiplier);
+    if (!first || points[0].readOn < first) first = points[0].readOn;
+    if (!last || points[points.length - 1].readOn > last) last = points[points.length - 1].readOn;
+  }
+  if (!first || !last) return null;
+  const span = toDay(last) - toDay(first);
+  if (span < 180) return null;
+  return Math.round((consumption / span) * 365 * 1000) / 1000;
 }
