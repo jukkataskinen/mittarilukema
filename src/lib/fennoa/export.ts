@@ -143,13 +143,16 @@ export async function exportRunToFennoa(
       }
       await sleep(client.environment === "mock" ? 0 : PAUSE_MS);
       const problems: string[] = [];
-      // Fennoan laskun haku ei palauta toimitustapaa (testi 25.9.2026: luonnoksen toimitustapa oli
-      // oikein, mutta kenttää ei ollut vastauksessa). Sähköisen laskun kanava katsotaan silloin
-      // varmistetuksi, jos Fennoan tallentama osoite on sama kuin lähetetty.
+      // Fennoan luonnoksen delivery_method on rajapinnassa tyhjä, vaikka toimitustapa on Fennoassa
+      // oikein (testit 25.9.2026), eikä verkkolaskuosoitetta palauteta. Tyhjä kenttä ei siis kerro
+      // virheestä: Fennoa tarkistaa toimitustavan jo luodessaan laskun (esim. hylkää kuluttajan
+      // e-laskun ilman sopimusta). Eri kanava kentässä on aina poikkeama.
       const confirmedByAddress = back.deliveryMethod === null && expected !== "postal" && back.einvoiceMatch === true;
+      // Jos Fennoa palauttaa osoitteen ja se eroaa lähetetystä, lasku on poikkeama.
+      const acceptedByFennoa = back.deliveryMethod === null && back.einvoiceMatch == null;
       if (readError) {
         problems.push(`Laskua ei voitu lukea takaisin (${readError}). Tarkista laskukanava Fennoasta.`);
-      } else if (back.deliveryMethod !== expected && !confirmedByAddress) {
+      } else if (back.deliveryMethod !== expected && !confirmedByAddress && !acceptedByFennoa) {
         problems.push(
           `Fennoa tallensi laskukanavaksi "${back.deliveryMethod ?? "tyhjä"}", odotettiin "${expected}" (${CHANNEL_LABEL[item.build.channel as InvoiceChannel]}). Korjaa lasku Fennoassa ennen lähetystä.` +
             (back.deliveryFields?.length ? ` Fennoan kentät: ${back.deliveryFields.join(", ")}.` : "") +
@@ -165,7 +168,13 @@ export async function exportRunToFennoa(
         confirmedGross: back.gross,
         message: problems.length
           ? problems.join(" ")
-          : [confirmedByAddress ? "Laskukanava varmistettu Fennoan tallentamasta osoitteesta." : null, back.gross === null ? "Summaa ei saatu tarkistettua Fennoan vastauksesta." : null]
+          : [
+              confirmedByAddress ? "Laskukanava varmistettu Fennoan tallentamasta osoitteesta." : null,
+              acceptedByFennoa && !readError
+                ? `Fennoa hyväksyi laskun toimitustavalla ${CHANNEL_LABEL[item.build.channel as InvoiceChannel].toLowerCase()}; luonnoksen toimitustapaa ei voi lukea rajapinnasta, tarkista pistokokein Fennoassa.`
+                : null,
+              back.gross === null ? "Summaa ei saatu tarkistettua Fennoan vastauksesta." : null,
+            ]
               .filter(Boolean).join(" ") || null,
       });
     } catch (err) {

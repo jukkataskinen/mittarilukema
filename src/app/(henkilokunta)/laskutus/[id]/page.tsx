@@ -110,7 +110,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
             <p className="text-sm text-ink/70">
               {draft ? "Tämä on laskutusajon luonnos: vienti on tarkoitettu kokeiluun Fennoan testiyritykseen. " : null}
               Laskut viedään Fennoaan luonnoksiksi, ja ne hyväksytään ja lähetetään Fennoassa. Laskukanava asetetaan jokaiselle laskulle asiakkaan kanavan mukaan,
-              ja viennin jälkeen kanava luetaan Fennoasta takaisin. Lasku, jonka asiakkaalta puuttuu laskukanava tai sen tiedot, estetään eikä sitä lähetetä muuta kautta.
+              ja Fennoa tarkistaa sen laskua luodessaan. Fennoa ei näytä luonnoksen toimitustapaa rajapinnassa, joten tarkista muutama lasku
+              pistokokein Fennoassa ennen hyväksyntää. Lasku, jonka asiakkaalta puuttuu laskukanava tai sen tiedot, estetään eikä sitä lähetetä muuta kautta.
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div>

@@ -165,7 +165,7 @@ describe("kanavan varmistus osoitteesta", () => {
     const run = await db.asUser(a.staff.sub, (tx) =>
       createBillingRun(tx, { organizationId: a.id, userId: a.staff.id, periodStart: "2024-03-31", periodEnd: "2024-09-30", note: "osoitetesti" }),
     );
-    const make = (match: boolean): FennoaClient => {
+    const make = (match: boolean | null): FennoaClient => {
       const inner = mockFennoa();
       return {
         environment: "mock",
@@ -174,8 +174,15 @@ describe("kanavan varmistus osoitteesta", () => {
       };
     };
     const input = { organizationId: a.id, userId: a.staff.id, runId: run.runId, ...dates };
+    // Fennoa palauttaa eri osoitteen: poikkeama.
     const bad = await exportRunToFennoa(runner(a.staff.sub), make(false), input);
     expect(bad).toMatchObject({ mismatch: 1, exported: 0 });
+    await db.asService((tx) => tx.query("delete from ml_fennoa_exports where run_id = $1", [run.runId]));
+    // Fennoa ei palauta toimitustapaa eikä osoitetta (luonnos): viety Fennoan hyväksynnän perusteella.
+    const accepted = await exportRunToFennoa(runner(a.staff.sub), make(null), input);
+    expect(accepted).toMatchObject({ mismatch: 0, exported: 1 });
+    const [acc] = await db.asUser(a.staff.sub, (tx) => tx.query<{ message: string }>("select message from ml_fennoa_exports where run_id = $1", [run.runId]));
+    expect(acc.message).toMatch(/Fennoa hyväksyi laskun toimitustavalla sähköposti/);
     await db.asService((tx) => tx.query("delete from ml_fennoa_exports where run_id = $1", [run.runId]));
     const ok = await exportRunToFennoa(runner(a.staff.sub), make(true), input);
     expect(ok).toMatchObject({ exported: 1, mismatch: 0 });
