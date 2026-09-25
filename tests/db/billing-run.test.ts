@@ -165,3 +165,26 @@ describe("arviolaskutusajo kiinteistön maksuin (Kärkinen)", () => {
     expect(line).toEqual({ net: "31.08", vat: "7.92", incl: true });
   });
 });
+
+describe("hyväksytyn ajon huoltopoisto", () => {
+  it("sovelluksen käyttäjä ei voi poistaa hyväksyttyä ajoa edes lipulla, huoltotoimi voi", async () => {
+    const { deleteApprovedRun } = await import("@/lib/billing/maintenance");
+    const r = await db.asUser(a.staff.sub, (tx) =>
+      createBillingRun(tx, { organizationId: a.id, userId: a.staff.id, periodStart: "2024-09-30", periodEnd: "2025-03-31" }),
+    );
+    await db.asUser(a.owner.sub, (tx) => approveBillingRun(tx, { organizationId: a.id, userId: a.owner.id, runId: r.runId }));
+    await expect(
+      db.asUser(a.owner.sub, async (tx) => {
+        await tx.query("select set_config('ml.allow_approved_delete', 'on', true)");
+        await tx.query("delete from ml_invoices where run_id = $1", [r.runId]);
+      }),
+    ).rejects.toThrow(/Hyväksytyn/);
+    await expect(db.asService((tx) => tx.query("delete from ml_billing_runs where id = $1", [r.runId]))).rejects.toThrow(/Hyväksyttyä/);
+    const res = await db.asService((tx) => deleteApprovedRun(tx, { runId: r.runId, reason: "testi" }));
+    expect(res.invoices).toBe(1);
+    const left = await db.asService((tx) => tx.query("select 1 from ml_invoices where run_id = $1", [r.runId]));
+    expect(left).toHaveLength(0);
+    const [log] = await db.asService((tx) => tx.query<{ details: { reason: string } }>("select details from ml_audit_log where action = 'billing_run.delete_approved' and entity_id = $1", [r.runId]));
+    expect(log.details.reason).toBe("testi");
+  });
+});

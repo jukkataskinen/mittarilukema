@@ -26,6 +26,7 @@
     "karkinen:lukemat": "tsx --env-file-if-exists=.env.local scripts/import-karkinen-readings.mts",
     "karkinen:vertaa-tasaus": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen-settlement.mts",
     "karkinen:vertaa-kk": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen-monthly.mts",
+    "laskutus:poista-hyvaksytty": "tsx --env-file-if-exists=.env.local scripts/delete-approved-run.mts",
     "karkinen:vertaa": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen.mts"
   },
   "dependencies": {
