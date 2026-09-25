@@ -152,7 +152,9 @@ export async function exportRunToFennoa(
       } else if (back.deliveryMethod !== expected && !confirmedByAddress) {
         problems.push(
           `Fennoa tallensi laskukanavaksi "${back.deliveryMethod ?? "tyhjä"}", odotettiin "${expected}" (${CHANNEL_LABEL[item.build.channel as InvoiceChannel]}). Korjaa lasku Fennoassa ennen lähetystä.` +
-            (back.deliveryFields?.length ? ` Fennoan kentät: ${back.deliveryFields.join(", ")}.` : ""),
+            (back.deliveryFields?.length ? ` Fennoan kentät: ${back.deliveryFields.join(", ")}.` : "") +
+            // Kun kanavaa ei löydy mistään, kirjataan vastauksen kenttien nimet (ei arvoja) selvitystä varten.
+            (back.deliveryMethod === null && back.einvoiceMatch == null && back.fieldNames?.length ? ` Vastauksen kentät: ${back.fieldNames.join(", ")}.` : ""),
         );
       }
       if (!readError && back.gross !== null && Math.abs(back.gross - round2(item.gross)) >= 0.005) {

@@ -17,6 +17,8 @@ export interface FennoaReadBack {
   deliveryFields?: string[];
   /** Onko Fennoan tallentama verkkolasku- tai sähköpostiosoite sama kuin lähetetty (null = kenttää ei ole). */
   einvoiceMatch?: boolean | null;
+  /** Vastauksen kenttien nimet ilman arvoja, jotta laskukanavan paikka voidaan selvittää. */
+  fieldNames?: string[];
 }
 
 export interface FennoaClient {
@@ -109,6 +111,7 @@ function httpClient(user: string, key: string): FennoaClient {
         deliveryMethod: findKey(body, "delivery_method"),
         gross: toNumber(findKey(body, "total_gross") ?? findKey(body, "gross_total") ?? findKey(body, "total_sum")),
         deliveryFields: deliveryFields(body, expected),
+        fieldNames: fieldNames(body),
         einvoiceMatch: (() => {
           const stored = findKey(body, "einvoice_address");
           if (stored === null || expected?.einvoiceAddress === undefined) return null;
@@ -151,6 +154,19 @@ function deliveryFields(
     }
   }
   return out.slice(0, 10);
+}
+
+/** Kenttien nimet polkuineen (enintään 4 tasoa, 120 nimeä); arvoja ei palauteta. */
+function fieldNames(obj: unknown, depth = 0, prefix = ""): string[] {
+  if (!obj || typeof obj !== "object" || depth > 4) return [];
+  const out: string[] = [];
+  const entries = Array.isArray(obj) ? obj.slice(0, 1).map((v, i) => [String(i), v] as const) : Object.entries(obj as Record<string, unknown>);
+  for (const [k, v] of entries) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === "object") out.push(...fieldNames(v, depth + 1, key));
+    else out.push(key);
+  }
+  return out.slice(0, 120);
 }
 
 /** Kentän arvo vastauksesta syvyydestä riippumatta (vastauksen kääre ei ole dokumentoitu). */

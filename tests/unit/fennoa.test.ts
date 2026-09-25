@@ -118,6 +118,10 @@ describe("Fennoan takaisinluku", () => {
     const back = await fennoaClient().getInvoice("452", { einvoiceAddress: "0037 12345678", einvoiceOperator: "003721291126" });
     expect(back).toEqual({
       deliveryMethod: null, gross: 229.64, einvoiceMatch: true,
+      fieldNames: [
+        "status", "data.SalesInvoice.id", "data.SalesInvoice.sales_invoice_delivery_method_id", "data.SalesInvoice.delivery_period_start",
+        "data.SalesInvoice.einvoice_address", "data.SalesInvoice.einvoice_operator", "data.SalesInvoice.total_gross",
+      ],
       deliveryFields: [
         "data.SalesInvoice.sales_invoice_delivery_method_id=4",
         "data.SalesInvoice.einvoice_address: sama kuin lähetetty",
