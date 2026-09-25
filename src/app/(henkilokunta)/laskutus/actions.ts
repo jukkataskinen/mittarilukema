@@ -114,6 +114,6 @@ export async function exportRunAction(formData: FormData) {
     throw err;
   }
   revalidatePath(back);
-  const parts = [`viety=${summary.exported}`, `estetty=${summary.blocked}`, `poikkeama=${summary.mismatch}`, `virhe=${summary.failed}`, `jaljella=${summary.remaining}`];
+  const parts = [`viety=${summary.exported}`, `estetty=${summary.blocked}`, `poikkeama=${summary.mismatch}`, `epaonnistui=${summary.failed}`, `jaljella=${summary.remaining}`];
   redirect(`${back}?${parts.join("&")}`);
 }

@@ -13,6 +13,8 @@ export type FennoaEnvironment = "mock" | "test";
 export interface FennoaReadBack {
   deliveryMethod: string | null;
   gross: number | null;
+  /** Vastauksen toimitustapaan liittyvät kentät (nimi=arvo) poikkeaman selvittämiseen; ei osoitteita. */
+  deliveryFields?: string[];
 }
 
 export interface FennoaClient {
@@ -100,9 +102,29 @@ function httpClient(user: string, key: string): FennoaClient {
     },
     async getInvoice(id) {
       const body = await call("GET", `sales_api/${encodeURIComponent(id)}`);
-      return { deliveryMethod: findKey(body, "delivery_method"), gross: toNumber(findKey(body, "total_gross") ?? findKey(body, "gross_total") ?? findKey(body, "total_sum")) };
+      return {
+        deliveryMethod: findKey(body, "delivery_method"),
+        gross: toNumber(findKey(body, "total_gross") ?? findKey(body, "gross_total") ?? findKey(body, "total_sum")),
+        deliveryFields: deliveryFields(body),
+      };
     },
   };
+}
+
+/**
+ * Toimitustapaan liittyvät kentät vastauksesta (avaimessa "deliver"), jotta poikkeamasta
+ * nähdään, mitä Fennoa tallensi. Osoite- ja verkkolaskuosoitekentät jätetään pois.
+ */
+function deliveryFields(obj: unknown, depth = 0, prefix = ""): string[] {
+  if (!obj || typeof obj !== "object" || depth > 4) return [];
+  const out: string[] = [];
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (/address|osoite|email|bic/i.test(k)) continue;
+    if (v && typeof v === "object") out.push(...deliveryFields(v, depth + 1, key));
+    else if (/deliver/i.test(k) && v !== null && v !== "") out.push(`${key}=${String(v).slice(0, 40)}`);
+  }
+  return out.slice(0, 8);
 }
 
 /** Kentän arvo vastauksesta syvyydestä riippumatta (vastauksen kääre ei ole dokumentoitu). */

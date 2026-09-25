@@ -102,3 +102,20 @@ describe("lasku Fennoan kentiksi", () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe("Fennoan takaisinluku", () => {
+  it("poimii toimitustapakentät poikkeaman selvittämiseen ilman osoitteita", async () => {
+    const { vi } = await import("vitest");
+    const { fennoaClient } = await import("@/lib/fennoa");
+    vi.stubEnv("FENNOA_MODE", "test");
+    vi.stubEnv("FENNOA_TEST_API_USER", "u");
+    vi.stubEnv("FENNOA_TEST_API_KEY", "k");
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      new Response(JSON.stringify({ status: "OK", data: { SalesInvoice: { id: 452, sales_invoice_delivery_method_id: 4, einvoice_address: "003712345678", total_gross: "229.64" } } }), { status: 200 }),
+    ));
+    const back = await fennoaClient().getInvoice("452");
+    expect(back).toEqual({ deliveryMethod: null, gross: 229.64, deliveryFields: ["data.SalesInvoice.sales_invoice_delivery_method_id=4"] });
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+});

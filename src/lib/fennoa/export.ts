@@ -1,7 +1,7 @@
 import type { Sql } from "@/lib/db/types";
 import { audit } from "@/lib/audit";
 import { CHANNEL_LABEL, type InvoiceChannel } from "./channel";
-import { FennoaError, type FennoaClient } from "./index";
+import { FennoaError, type FennoaClient, type FennoaReadBack } from "./index";
 import { buildFennoaInvoice, type BuildResult, type ExportInvoice } from "./invoice";
 
 export class FennoaExportError extends Error {}
@@ -132,7 +132,7 @@ export async function exportRunToFennoa(
     try {
       const { id } = await client.addInvoice(item.build.form);
       await sleep(client.environment === "mock" ? 0 : PAUSE_MS);
-      let back: { deliveryMethod: string | null; gross: number | null } = { deliveryMethod: null, gross: null };
+      let back: FennoaReadBack = { deliveryMethod: null, gross: null };
       let readError: string | null = null;
       try {
         back = await client.getInvoice(id);
@@ -143,7 +143,10 @@ export async function exportRunToFennoa(
       const problems: string[] = [];
       if (readError) problems.push(`Laskua ei voitu lukea takaisin (${readError}). Tarkista laskukanava Fennoasta.`);
       else if (back.deliveryMethod !== expected) {
-        problems.push(`Fennoa tallensi laskukanavaksi "${back.deliveryMethod ?? "tyhjä"}", odotettiin "${expected}" (${CHANNEL_LABEL[item.build.channel as InvoiceChannel]}). Korjaa lasku Fennoassa ennen lähetystä.`);
+        problems.push(
+          `Fennoa tallensi laskukanavaksi "${back.deliveryMethod ?? "tyhjä"}", odotettiin "${expected}" (${CHANNEL_LABEL[item.build.channel as InvoiceChannel]}). Korjaa lasku Fennoassa ennen lähetystä.` +
+            (back.deliveryFields?.length ? ` Fennoan kentät: ${back.deliveryFields.join(", ")}.` : ""),
+        );
       }
       if (!readError && back.gross !== null && Math.abs(back.gross - round2(item.gross)) >= 0.005) {
         problems.push(`Fennoan laskun summa ${back.gross.toFixed(2)} € poikkeaa laskusta ${item.gross.toFixed(2)} €.`);

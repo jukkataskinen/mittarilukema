@@ -102,8 +102,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           <Panel>
             {summary ? (
               <div className="mb-4">
-                <Notice tone={Number(summary.estetty) || Number(summary.poikkeama) || Number(summary.virhe) ? "warn" : "ok"} title="Vientierä käsitelty">
-                  Viety {summary.viety}, estetty {summary.estetty}, poikkeama {summary.poikkeama}, virhe {summary.virhe}. Lähettämättä {summary.jaljella}.
+                <Notice tone={Number(summary.estetty) || Number(summary.poikkeama) || Number(summary.epaonnistui) ? "warn" : "ok"} title="Vientierä käsitelty">
+                  Viety {summary.viety}, estetty {summary.estetty}, poikkeama {summary.poikkeama}, epäonnistui {summary.epaonnistui}. Lähettämättä {summary.jaljella}.
                 </Notice>
               </div>
             ) : null}
