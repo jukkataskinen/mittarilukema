@@ -21,7 +21,7 @@ Vesihuoltolaitosten mittarilukema- ja laskutusohjelma, joka korvaa mittarilukema
 - **Muutokset lokiin:** `audit()` samassa transaktiossa kuin muutos.
 - **Lomakkeet:** server action → `parseForm(schema, formData, backTo)`. Virhe `?virhe=`-parametrilla, sivu näyttää sen `<FormError>`-komponentilla.
 - **Päivämäärät ja rahat:** kanta `date` ja `numeric`, näyttö `src/lib/format.ts` (Europe/Helsinki). Lukemat `numeric(12,3)`.
-- **Ulkoiset palvelut** (tekstiviestit, etäluenta, Fennoa) moduulin `index.ts`-rajapinnan takana, ja mock-toteutus on oletus, kun avain puuttuu. Fennoaan ei koskaan tuotantoympäristöön testatessa.
+- **Ulkoiset palvelut** (tekstiviestit, sähköposti, etäluenta, Fennoa) moduulin `index.ts`-rajapinnan takana, ja mock-toteutus on oletus, kun avain puuttuu. Fennoaan ei koskaan tuotantoympäristöön testatessa.
 - **Tuotantoon ei kosketa:** mittarilukema.fi pysyy käytössä rinnakkaisajon loppuun asti.
 
 ## Lukitut päätökset
@@ -50,9 +50,11 @@ src/lib/billing/          laskentamoottori (calculate), laskutusajo (run), lisä
 src/lib/sms/              tekstiviestien tulkinta ja vastaanotto, lähetys testitilassa
 src/lib/import/           Fennoa-aineiston tuonnin logiikka
 src/lib/fennoa/           laskukanava (channel), laskun muunnos (invoice), vienti (export), rajapinta (index: mock/test)
+src/lib/announcements/    tiedotteet: vastaanottajat ja toimitustapa (index), ikkunakirjeet PDF:nä (letter)
+src/lib/email/            sähköpostin lähetys (mock / Resend)
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0015 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0016 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu

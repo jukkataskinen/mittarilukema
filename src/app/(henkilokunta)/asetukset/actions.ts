@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/current-user";
-import { fail, isUniqueViolation, parseForm } from "@/lib/forms";
+import { emptyToNull, fail, isUniqueViolation, parseForm } from "@/lib/forms";
 import { audit } from "@/lib/audit";
 import { addMember, changeMemberRole, MemberError, removeMember } from "@/lib/members";
 import { normalizePhone } from "@/lib/validation/phone";
@@ -145,6 +145,31 @@ export async function updateSmsNumberAction(formData: FormData) {
     if (isUniqueViolation(err)) fail(BACK, "Numero on jo toisen laitoksen käytössä.");
     throw err;
   }
+  revalidatePath(BACK);
+  redirect(`${BACK}?ilmoitus=tallennettu`);
+}
+
+export async function updateContactAction(formData: FormData) {
+  const ctx = await requireRole("owner");
+  const text = (max: number) => z.preprocess(emptyToNull, z.string().trim().max(max).nullable());
+  const input = parseForm(
+    z.object({
+      contactEmail: z.preprocess(emptyToNull, z.string().trim().email("Tarkista sähköpostiosoite.").max(200).nullable()),
+      contactPhone: text(40),
+      postalStreet: text(200),
+      postalCode: z.preprocess(emptyToNull, z.string().regex(/^\d{5}$/, "Postinumero on viisi numeroa.").nullable()),
+      postalCity: text(100),
+    }),
+    formData,
+    BACK,
+  );
+  await ctx.run(async (tx) => {
+    await tx.query(
+      "update ml_organizations set contact_email = $2, contact_phone = $3, postal_street = $4, postal_code = $5, postal_city = $6, updated_at = now() where id = $1",
+      [ctx.org.organizationId, input.contactEmail, input.contactPhone, input.postalStreet, input.postalCode, input.postalCity],
+    );
+    await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "organization.contact", entity: "ml_organizations", entityId: ctx.org.organizationId });
+  });
   revalidatePath(BACK);
   redirect(`${BACK}?ilmoitus=tallennettu`);
 }

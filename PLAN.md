@@ -88,6 +88,10 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [ ] Kärkisen tammi–elokuun 2026 vanhassa järjestelmässä laskutetut arviot tasausta varten (BLOCKERS 10)
 - [~] Laskujen vienti Fennoaan: toteutettu (laskukanava pakollinen, takaisinluku ja tarkistus), testattu testitilassa; testiympäristön tunnukset odottavat (BLOCKERS 13)
 
+### Tiedotteet
+- [x] Tiedotteet asiakkaille: sähköposti ensin, ikkunakirje PDF:nä, vastaanottajien lukitus ja tila (0016)
+- [ ] Sähköpostipalvelun käyttöönotto (BLOCKERS 15)
+
 ### Käyttöönotto (maalis–huhtikuu 2027)
 - [ ] Syyskuun 2026 laskujen uudelleenlaskenta ja vertailu (tammikuu 2027)
 - [ ] Fennoan testiympäristön pääsy (ennen joulukuuta)

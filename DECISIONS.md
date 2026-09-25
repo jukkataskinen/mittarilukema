@@ -98,3 +98,16 @@
 5. Lasku luetaan Fennoasta takaisin. Jos kanava tai summa eroaa, lasku merkitään poikkeamaksi ja se korjataan Fennoassa ennen lähetystä.
 
 **Kärkisen laskukanavat.** Kanava asetetaan vain vanhan järjestelmän verkkolaskuosoitteista: tilinumero ja BIC tarkoittavat kuluttajan e-laskua, OVT-tunnus yrityksen verkkolaskua ja suoramaksusopimus suoramaksua (74 asiakasta). Muille ei arvata paperia eikä sähköpostia, vaan kanava vahvistetaan Kärkiseltä. Kuolinpesä laskutetaan kuluttajana, eikä sitä enää luokitella tuonneissa yhteisöksi.
+
+## 2026-09-25 (Tiedotteet)
+
+**Tiedotteet (0016, src/lib/announcements).** Jokainen organisaatio voi lähettää tiedotteen laskun maksajille tai kaikille voimassa olevien sopimusten osapuolille, koko organisaatiolle tai yhdelle alueelle (Jukka 25.9.2026: Kärkisen osakkaat saavat tiedon laskutuksen muutoksesta). Toimitustapa päätetään säännöllä, joka näytetään ennen lähetystä:
+- **Sähköposti ensin:** jos sähköpostia ei ole, kirje.
+- **Kaikille kirje:** sähköposti vain, jos postiosoite puuttuu.
+- **Ei tavoitettavissa:** kumpaakaan ei voi käyttää. Nämä luetellaan, jotta tiedot voi täydentää.
+
+Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen näkyy, kuka sai tiedotteen ja miten. Sähköpostit lähtevät erissä (40), ja rinnakkainen painallus ei lähetä samaa viestiä kahdesti. Ennen lukitusta voi lähettää koeviestin omaan osoitteeseen.
+
+**Kirjeet itse tulostettaviin ikkunakuoriin.** Kirjeet tehdään yhdeksi PDF:ksi (pdf-lib, vakiofontti Helvetica). Osoite sijoitetaan SFS 2487:n osoitekenttään: 20 mm vasemmalta ja rivin 8 kohdalle, noin 45 mm ylhäältä. Paikka sopii sekä C5- että E65-ikkunakuoreen. Koetulosteessa ikkunan ohjeellinen paikka ja taitekohdat on merkitty, ja siinä on kuvitteellinen vastaanottaja. Kirjeet merkitään postitetuiksi erikseen tulostuksen jälkeen. Fontista puuttuva merkki korvataan kysymysmerkillä, jottei tulostus kaadu.
+
+**Sähköpostipalvelu Resend, oletuksena testitila.** Kuten tekstiviesteissä, oletus on testitila (EMAIL_MODE=mock), joka ei lähetä mitään. Resend valittiin, koska se on jo käytössä Kasamasterissa ja sen rajapinta on pelkkä HTTPS-kutsu. Lähettäjän nimenä näkyy organisaation nimi, ja vastaukset ohjataan organisaation sähköpostiin (Asetukset, yhteystiedot). Viesteissä ei ole ulkoisia kuvia eikä seurantaa.

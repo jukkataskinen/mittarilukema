@@ -4,7 +4,7 @@ import { requireRole, ROLE_LABEL, type OrgRole } from "@/lib/auth/current-user";
 import { listAreas } from "@/lib/registry/queries";
 import { BILLING_METHOD, MONTHS } from "@/lib/labels";
 import { formatDateTime } from "@/lib/format";
-import { addMemberAction, changeMemberRoleAction, createAreaAction, removeMemberAction, renameAreaAction, updateBillingAction, updateSmsNumberAction } from "./actions";
+import { addMemberAction, changeMemberRoleAction, createAreaAction, removeMemberAction, renameAreaAction, updateBillingAction, updateContactAction, updateSmsNumberAction } from "./actions";
 import { formatPhone } from "@/lib/validation/phone";
 
 export const metadata = { title: "Asetukset" };
@@ -17,8 +17,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const orgId = ctx.org.organizationId;
   const data = await ctx.run(async (tx) => ({
     org: (
-      await tx.query<{ name: string; business_id: string | null; billing_method: "actual" | "estimate"; billing_months: number[]; settlement_month: number | null; sms_number: string | null }>(
-        "select name, business_id, billing_method, billing_months, settlement_month, sms_number from ml_organizations where id = $1",
+      await tx.query<{
+        name: string; business_id: string | null; billing_method: "actual" | "estimate"; billing_months: number[]; settlement_month: number | null; sms_number: string | null;
+        contact_email: string | null; contact_phone: string | null; postal_street: string | null; postal_code: string | null; postal_city: string | null;
+      }>(
+        `select name, business_id, billing_method, billing_months, settlement_month, sms_number,
+                contact_email, contact_phone, postal_street, postal_code, postal_city from ml_organizations where id = $1`,
         [orgId],
       )
     )[0],
@@ -95,6 +99,39 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               </Field>
               <div>
                 <Button>Tallenna</Button>
+              </div>
+            </form>
+          </Panel>
+        </section>
+
+        <section className="lg:col-span-2">
+          <SectionTitle>Yhteystiedot tiedotteisiin</SectionTitle>
+          <Panel>
+            <form action={updateContactAction} className="grid gap-4">
+              <p className="text-sm text-ink/70">
+                Tulevat tiedotteen allekirjoitukseen ja kirjeen lähettäjäksi. Sähköpostitiedotteiden vastaukset ohjataan tähän sähköpostiosoitteeseen.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Sähköposti" htmlFor="contactEmail">
+                  <Input id="contactEmail" name="contactEmail" type="email" defaultValue={org.contact_email ?? ""} />
+                </Field>
+                <Field label="Puhelin" htmlFor="contactPhone">
+                  <Input id="contactPhone" name="contactPhone" type="tel" defaultValue={org.contact_phone ?? ""} />
+                </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_8rem_minmax(0,1fr)]">
+                <Field label="Postiosoite" htmlFor="postalStreet">
+                  <Input id="postalStreet" name="postalStreet" defaultValue={org.postal_street ?? ""} />
+                </Field>
+                <Field label="Postinumero" htmlFor="postalCode">
+                  <Input id="postalCode" name="postalCode" inputMode="numeric" defaultValue={org.postal_code ?? ""} />
+                </Field>
+                <Field label="Postitoimipaikka" htmlFor="postalCity">
+                  <Input id="postalCity" name="postalCity" defaultValue={org.postal_city ?? ""} />
+                </Field>
+              </div>
+              <div>
+                <Button variant="secondary">Tallenna yhteystiedot</Button>
               </div>
             </form>
           </Panel>
