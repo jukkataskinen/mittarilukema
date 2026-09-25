@@ -6,6 +6,10 @@ Kansiossa on oltava:
   - Ennakkotavoitelista veloituksista YYYYMM.pdf  (kuukauden veloitukset huoneistoittain)
   - Käyttöpaikat*.xlsx                             (kulutuspiste, osoite ja yhteystiedot)
   - Lainaoosuudet*.xlsx                            (lainaosuuksien saldot kuukausittain)
+Valinnaiset (asiakastietojen täydennys):
+  - Asiakasrekisteri*.xlsx                         (henkilöt: laskutusosoite, sähköposti, puhelin)
+  - Sidokset*.xlsx                                 (huoneiston henkilöt ja voimassaolo)
+  - Verkkolaskutusosoitteet*.pdf                   (henkilön verkkolaskuosoite ja välittäjä)
 
 Ennakkolista on ensisijainen rekisteri: jokainen huoneisto on yksi laskutettava
 kiinteistö ja maksaja. Käyttöpaikka yhdistetään huoneistoon osoitteella, ja jos
@@ -18,8 +22,11 @@ data/private-kansioon, joka ei ole versionhallinnassa.
 """
 
 import collections
+import csv
+import datetime
 import difflib
 import glob
+import io
 import json
 import os
 import re
@@ -126,7 +133,6 @@ def parse_loans(path, sheet):
     month, year = int(sheet[:2]), int(sheet[2:])
     # Saldo kuukauden viimeisenä päivänä.
     nxt = (year + (month == 12), month % 12 + 1)
-    import datetime
     balance_date = (datetime.date(nxt[0], nxt[1], 1) - datetime.timedelta(days=1)).isoformat()
     out = []
     for r in wb[sheet].iter_rows(values_only=True):
@@ -145,6 +151,168 @@ def parse_loans(path, sheet):
             "lyhennys": round(float(r[4]), 2) if isinstance(r[4], (int, float)) else 0.0, "viimeinen_kk": final, "huom": note,
         })
     return out
+
+
+# Henkilötunnuksia ei käsitellä: vapaatekstistä poistetaan tunnuksen näköiset merkkijonot.
+HETU = re.compile(r"\b\d{6}[-+A-FU-Y]\d{3}[0-9A-Y]\b")
+
+
+def clean_note(text, stats):
+    text = (text or "").strip()
+    if HETU.search(text):
+        stats["henkilötunnus poistettu"] += 1
+        text = HETU.sub("[poistettu]", text)
+    return text or None
+
+
+def find_optional(folder, pattern):
+    hits = glob.glob(os.path.join(folder, pattern))
+    return hits[0] if len(hits) == 1 else None
+
+
+def read_csv_sheet(path, expected):
+    """Taulukko, jonka jokaisella rivillä on yksi pilkuin eroteltu CSV-rivi."""
+    ws = openpyxl.load_workbook(path, data_only=True, read_only=True).worksheets[0]
+    lines = [str(r[0]) for r in ws.iter_rows(values_only=True) if r and r[0]]
+    rows = list(csv.reader(io.StringIO("\n".join(lines))))
+    if [h.strip() for h in rows[0][: len(expected)]] != expected:
+        sys.exit(f"{os.path.basename(path)}: sarakkeet ovat muuttuneet.")
+    return rows[1:]
+
+
+def fi_date(s):
+    m = re.match(r"\s*(\d{1,2})\.(\d{1,2})\.(\d{4})", s or "")
+    return f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else None
+
+
+def parse_persons(path, stats):
+    out = []
+    for r in read_csv_sheet(path, ["Etunimi", "Sukunimi", "Voimassaolevat henkilöroolit", "Lisätiedot", "Sähköposti",
+                                   "Matkapuhelin", "Matkapuhelin (norm.)", "Työpuhelin", "Osoite"]):
+        if len(r) < 9:
+            stats["henkilörivi ohitettu"] += 1
+            continue
+        # Pilkku osoitteessa ("Katu 1, 41800 Korpilahti") voi jakaa rivin ilman lainausmerkkejä.
+        address = ",".join(r[8:]).strip()
+        m = re.match(r"^(.*?),?\s*(\d{5})\s+(.+)$", address)
+        phone = r[6].strip() if r[6].strip().startswith("+") else r[5].strip()
+        out.append({
+            "etunimi": r[0].strip(), "sukunimi": r[1].strip(), "email": r[4].strip() or None, "puhelin": phone or None,
+            "katu": m.group(1).strip() if m else (address or None), "postinumero": m.group(2) if m else None,
+            "toimipaikka": m.group(3).strip() if m else None, "lisatiedot": clean_note(r[3], stats),
+        })
+    return out
+
+
+def parse_bonds(path, stats):
+    out = []
+    for r in read_csv_sheet(path, ["Huoneisto", "Henkilö", "Sidosnumero", "Lisähenkilö", "Sidostyyppi", "Voimassa", "Merkitty", "Asuu", "Lisätiedot"]):
+        if len(r) < 6:
+            stats["sidosrivi ohitettu"] += 1
+            continue
+        valid = r[5].split("-")
+        out.append({
+            "huoneisto": r[0].strip(), "henkilo": r[1].strip(), "sidosnumero": r[2].strip(), "lisahenkilo": r[3].strip() or None,
+            "alku": fi_date(valid[0]), "loppu": fi_date(valid[1]) if len(valid) > 1 else None,
+            "lisatiedot": clean_note(",".join(r[8:]), stats) if len(r) > 8 else None,
+        })
+    return out
+
+
+def parse_einvoices(path, stats):
+    """Verkkolaskuosoitteet: nimi vasemmalla (voi olla omalla rivillään), välittäjä x≈481, osoite x≈593."""
+    out, pending = [], []
+    for page in pymupdf.open(path):
+        rows = collections.defaultdict(list)
+        for w in page.get_text("words"):
+            rows[round(w[1] / 3)].append(w)
+        for key in sorted(rows):
+            ws = sorted(rows[key], key=lambda w: w[0])
+            words = [w[4] for w in ws]
+            if any(x in words for x in ("Tulostettu", "Sivu", "Välittäjätunnus")):
+                continue
+            name = [w[4] for w in ws if w[0] < 225]
+            operator = [w[4] for w in ws if 475 < w[0] < 585]
+            address = [w[4] for w in ws if 585 < w[0] < 700]
+            direct = [w[4] for w in ws if w[0] >= 700]
+            if operator and address:
+                if not name and not pending:
+                    stats["verkkolasku ilman nimeä"] += 1
+                    continue
+                if name and pending:
+                    stats["verkkolasku, edellinen nimirivi ohitettu"] += 1
+                out.append({"nimi": " ".join(name or pending), "valittaja": operator[0], "osoite": address[0],
+                            "suoramaksu": bool(direct) and direct[0] == "Kyllä"})
+                pending = []
+            elif name:
+                pending = name
+    return out
+
+
+def person_tokens(p):
+    # Sukunimi ja ensimmäinen etunimi.
+    first = re.findall(r"[a-zåäö]{3,}", (p["etunimi"] or "").lower())[:1]
+    return tokens(p["sukunimi"]) | set(first)
+
+
+def overlap(a, b):
+    return bool(a and b and len(a & b) >= min(2, len(a), len(b)))
+
+
+def match_registry(folder, units, period_end, stats):
+    """Henkilö-, sidos- ja verkkolaskutiedot huoneistoille (kenttä "rekisteri")."""
+    persons_path = find_optional(folder, "Asiakasrekisteri*.xlsx")
+    bonds_path = find_optional(folder, "Sidokset*.xlsx")
+    einv_path = find_optional(folder, "Verkkolaskutusosoitteet*.pdf")
+    persons = parse_persons(persons_path, stats) if persons_path else []
+    bonds = parse_bonds(bonds_path, stats) if bonds_path else []
+    einvoices = parse_einvoices(einv_path, stats) if einv_path else []
+    stats["henkilöitä"], stats["sidoksia"], stats["verkkolaskuosoitteita"] = len(persons), len(bonds), len(einvoices)
+
+    # Sidos huoneistolle osoitteella; samassa osoitteessa useampi huoneisto (39, 160) → henkilön nimellä.
+    by_addr = collections.defaultdict(list)
+    for u in units:
+        u["rekisteri"] = {"sidokset": [], "maksajan_sidos": None, "henkilo": None, "verkkolasku": None}
+        by_addr[norm(u["osoite"])].append(u)
+    for b in bonds:
+        c = by_addr.get(norm(b["huoneisto"]), [])
+        if not c:
+            c = [u for u in units if difflib.SequenceMatcher(None, norm(b["huoneisto"]), norm(u["osoite"])).ratio() > 0.9]
+        if len(c) > 1:
+            named = [u for u in c if overlap(tokens(b["henkilo"]), tokens(u["maksaja"]))]
+            c = named if len(named) == 1 else c
+        for u in c:
+            u["rekisteri"]["sidokset"].append(b)
+        stats["sidos yhdistetty" if len(c) == 1 else "sidos useaan huoneistoon" if c else "sidos ilman huoneistoa"] += 1
+
+    for u in units:
+        reg = u["rekisteri"]
+        current = [b for b in reg["sidokset"] if b["loppu"] is None or b["loppu"] >= period_end]
+        payer = [b for b in current if overlap(tokens(b["henkilo"]), tokens(u["maksaja"]))]
+        reg["maksajan_sidos"] = payer[0] if len(payer) == 1 else (current[0] if len(current) == 1 else None)
+        if reg["maksajan_sidos"]:
+            stats["maksajan sidos"] += 1
+        # Henkilö: sidoksen nimellä, muuten maksajan nimellä.
+        sources = ([reg["maksajan_sidos"]["henkilo"]] if reg["maksajan_sidos"] else []) + [u["maksaja"]]
+        for source in sources:
+            t = tokens(source)
+            c = [p for p in persons if len(person_tokens(p)) >= 2 and person_tokens(p) <= t]
+            if len(c) == 1:
+                reg["henkilo"] = c[0]
+                stats["henkilö yhdistetty"] += 1
+                break
+
+    for e in einvoices:
+        t = tokens(e["nimi"])
+        free = [u for u in units if u["rekisteri"]["verkkolasku"] is None]
+        c = [u for u in free if overlap(t, tokens(u["maksaja"]))]
+        if len(c) != 1:
+            c = [u for u in free if u["rekisteri"]["henkilo"] and person_tokens(u["rekisteri"]["henkilo"]) <= t]
+        if len(c) == 1:
+            c[0]["rekisteri"]["verkkolasku"] = e
+            stats["verkkolasku yhdistetty"] += 1
+        else:
+            stats["verkkolasku ei yhdistetty"] += 1
 
 
 def main():
@@ -209,6 +377,11 @@ def main():
         else:
             loan_miss += 1
 
+    reg_stats = collections.Counter()
+    year, month = int(period[:4]), int(period[4:])
+    period_end = (datetime.date(year + (month == 12), month % 12 + 1, 1) - datetime.timedelta(days=1)).isoformat()
+    match_registry(folder, units, period_end, reg_stats)
+
     out = arg("--ulos", "data/private/karkinen/karkinen.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
@@ -222,6 +395,8 @@ def main():
     if dups:
         print(f"Sama huoneistonumero useammalla maksajalla: {', '.join(dups)}.")
     print(f"Lainaosuuksia avoinna {len(loans)}, yhdistetty {len(loans) - loan_miss}, ei yhdistetty {loan_miss}.")
+    if reg_stats:
+        print("Rekisteri: " + ", ".join(f"{k} {v}" for k, v in reg_stats.items()) + ".")
     print(f"Kirjoitettu {out}")
 
 

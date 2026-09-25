@@ -22,6 +22,7 @@
     "vertaa:laskut": "tsx --env-file-if-exists=.env.local scripts/compare-fennoa.mts",
     "kayttaja:lisaa": "tsx --env-file-if-exists=.env.local scripts/add-user.mts",
     "karkinen:tuo": "tsx --env-file-if-exists=.env.local scripts/import-karkinen.mts",
+    "karkinen:taydenna": "tsx --env-file-if-exists=.env.local scripts/enrich-karkinen.mts",
     "karkinen:vertaa": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen.mts"
   },
   "dependencies": {

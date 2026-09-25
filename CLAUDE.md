@@ -71,6 +71,7 @@ npm run joutsa:alueet [-- --tuotanto]        alueet Unes-tunnuksesta
 npm run vertaa:laskut [-- --tuotanto]        Fennoan laskut uudelleen laskettuina
 python scripts/karkinen/parse.py <kansio>    Kärkisen ennakkolista, käyttöpaikat ja lainat → data/private/karkinen
 npm run karkinen:tuo -- [--luo] [--korvaa] [--kuiva] [--tuotanto]
+npm run karkinen:taydenna [-- --kuiva] [--tuotanto]     laskutusosoitteet, verkkolasku, sopimusten alut
 npm run karkinen:vertaa [-- --tallenna] [--tuotanto]   arviolaskut ennakkolistaa vasten
 npm run kayttaja:lisaa -- --email x --org "Nimi" --rooli owner [--luo-org actual|estimate] [--tuotanto]
 npm run lint && npm run typecheck && npm run test
