@@ -40,7 +40,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
     if (!run) return null;
     const env = fennoaEnvironment();
     const invoices = await listRunInvoices(tx, orgId, id, active.filter, sp.q);
-    if (run.status !== "approved" || !env) return { run, invoices, env, status: null, exports: new Map<string, Awaited<ReturnType<typeof latestExports>>[number]>() };
+    // Luonnoksen voi viedä testiympäristöön (mock tai test), tuotantoon vain hyväksytyn.
+    if (!env || (run.status !== "approved" && env !== "mock" && env !== "test")) return { run, invoices, env, status: null, exports: new Map<string, Awaited<ReturnType<typeof latestExports>>[number]>() };
     const [status, rows] = await Promise.all([runExportStatus(tx, orgId, id, env), latestExports(tx, orgId, id, env)]);
     return { run, invoices, env, status, exports: new Map(rows.map((r) => [r.invoice_id, r])) };
   });
@@ -73,7 +74,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         {draft ? (
           <Notice tone="info" title="Luonnos">
             Tarkista huomautukset. Laskun voi jättää pois ajosta laskun sivulla. Jos rekisteriin tai lukemiin tehdään korjauksia, poista luonnos ja laske uudelleen.
-            Hyväksytty ajo lukitaan. Fennoaan ei lähetetä mitään.
+            Hyväksytty ajo lukitaan. Luonnoksen voi viedä vain Fennoan testiympäristöön; kun luonnos poistetaan, sen vientitiedot poistuvat mukana.
           </Notice>
         ) : (
           <Notice tone="ok" title="Hyväksytty">
@@ -107,6 +108,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
               </div>
             ) : null}
             <p className="text-sm text-ink/70">
+              {draft ? "Tämä on laskutusajon luonnos: vienti on tarkoitettu kokeiluun Fennoan testiyritykseen. " : null}
               Laskut viedään Fennoaan luonnoksiksi, ja ne hyväksytään ja lähetetään Fennoassa. Laskukanava asetetaan jokaiselle laskulle asiakkaan kanavan mukaan,
               ja viennin jälkeen kanava luetaan Fennoasta takaisin. Lasku, jonka asiakkaalta puuttuu laskukanava tai sen tiedot, estetään eikä sitä lähetetä muuta kautta.
             </p>

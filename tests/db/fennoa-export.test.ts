@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/db/types";
-import { approveBillingRun, createBillingRun } from "@/lib/billing/run";
+import { approveBillingRun, createBillingRun, deleteDraftRun } from "@/lib/billing/run";
 import { exportRunToFennoa } from "@/lib/fennoa/export";
 import { mockFennoa, type FennoaClient } from "@/lib/fennoa";
 import { freshDb, seedOrg, type OrgFixture } from "../helpers/db";
@@ -42,10 +42,15 @@ afterAll(async () => {
 });
 
 describe("vienti Fennoaan", () => {
-  it("luonnosta ei voi viedä", async () => {
-    await expect(
-      exportRunToFennoa(runner(a.staff.sub), mockFennoa(), { organizationId: a.id, userId: a.staff.id, runId, ...dates }),
-    ).rejects.toThrow(/hyväksytyn/);
+  it("luonnoksen voi viedä testiympäristöön, ja poistettu luonnos vie vientitiedot mukanaan", async () => {
+    const draft = await db.asUser(a.staff.sub, (tx) =>
+      createBillingRun(tx, { organizationId: a.id, userId: a.staff.id, periodStart: "2025-03-31", periodEnd: "2025-09-30", note: "kokeilu" }),
+    );
+    const s = await exportRunToFennoa(runner(a.staff.sub), mockFennoa(), { organizationId: a.id, userId: a.staff.id, runId: draft.runId, ...dates });
+    expect(s.blocked + s.exported).toBeGreaterThan(0);
+    await db.asUser(a.staff.sub, (tx) => deleteDraftRun(tx, { organizationId: a.id, userId: a.staff.id, runId: draft.runId }));
+    const rows = await db.asUser(a.staff.sub, (tx) => tx.query("select 1 from ml_fennoa_exports where run_id = $1", [draft.runId]));
+    expect(rows).toHaveLength(0);
     await db.asUser(a.owner.sub, (tx) => approveBillingRun(tx, { organizationId: a.id, userId: a.owner.id, runId }));
   });
 

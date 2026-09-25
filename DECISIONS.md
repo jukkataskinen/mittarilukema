@@ -116,3 +116,5 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 - Kirjepohja noudattaa Postitan kirjepohjaohjetta: lähettäjä 10–30 mm, maksumerkinnän kaista 30–40 mm tyhjänä, vastaanottaja 40–60 mm, 20–85 mm vasemmalta ja turva-alue 85 × 110 mm. Pitkä rivi pienennetään mahtumaan kenttään.
 - Kirjeet ladataan rajapinnalla (src/lib/letters) yhtenä PDF:nä vahvistamattomana työnä, ja pdf_splitter jakaa sen kirjeiksi (kaikki kirjeet ovat yhtä pitkiä). Vedoksen voi tarkistaa Postitassa ennen kuin postitus vahvistetaan tiedotteen sivulta. Peruutus palauttaa kirjeet lähettämättömiksi.
 - Oma tulostus jää varavaihtoehdoksi. Oletuksena on testitila (LETTER_MODE=mock).
+
+**Luonnoksen vienti Fennoan testiympäristöön (Jukka 25.9.2026).** Testitilaan ja Fennoan testiyritykseen voi viedä myös laskutusajon luonnoksen. Näin vientiä voi kokeilla hyväksymättä ajoa: hyväksytty ajo lukitaan, ja Kärkisen hyväksytyt arvioajot vähennetään tasauksessa. Kun luonnos poistetaan, sen vientitiedot poistuvat mukana; testiyrityksen luonnoslaskut jäävät Fennoaan. Tuotantoon viedään jatkossakin vain hyväksytty ajo.

@@ -46,7 +46,10 @@ export async function exportRunToFennoa(
   const prepared = await run(async (tx) => {
     const [r] = await tx.query<{ status: string }>("select status from ml_billing_runs where id = $1 and organization_id = $2", [runId, orgId]);
     if (!r) throw new FennoaExportError("Laskutusajoa ei löytynyt.");
-    if (r.status !== "approved") throw new FennoaExportError("Vain hyväksytyn ajon voi viedä Fennoaan.");
+    // Testitilaan ja Fennoan testiyritykseen voi viedä myös luonnoksen, jotta vientiä voi kokeilla
+    // lukitsematta ajoa (hyväksytty arvioajo vaikuttaa tasaukseen). Tuotantoon vain hyväksytty.
+    const testEnvironment = env === "mock" || env === "test";
+    if (r.status !== "approved" && !testEnvironment) throw new FennoaExportError("Vain hyväksytyn ajon voi viedä Fennoaan.");
 
     const invoices = await tx.query<{
       id: string; info: string | null; gross_eur: string; period_start: string; period_end: string;
