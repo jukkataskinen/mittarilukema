@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { openTargetDb } from "./lib/target-db.mts";
 import { normalizePhone } from "../src/lib/validation/phone.ts";
+import { channelFromEinvoice } from "../src/lib/fennoa/channel.ts";
 
 /**
  * Kärkisen asiakastietojen täydennys asiakasrekisteristä, sidoksista ja
@@ -11,7 +12,10 @@ import { normalizePhone } from "../src/lib/validation/phone.ts";
  * Asiakas haetaan asiakasnumerolla (huoneiston tunnus). Täydennetään:
  *   - laskutusosoite henkilörekisteristä (korvaa aiemman)
  *   - sähköposti ja puhelin, jos asiakkaalla ei vielä ole niitä
- *   - verkkolaskuosoite ja välittäjä
+ *   - verkkolaskuosoite ja välittäjä sekä laskukanava niille, joilla vanhassa järjestelmässä
+ *     on e-lasku, verkkolasku tai suoramaksu. Muille kanavaa ei arvata (paperi vai
+ *     sähköposti), vaan se jää asettamatta ja estää viennin, kunnes Kärkinen vahvistaa sen.
+ *     Toimiston asettamaa kanavaa ei muuteta.
  *   - sopimuksen alkupäivä ja lisätiedot (lisähenkilö, sidoksen lisätiedot)
  *   - liittymien alkupäivä: huoneiston varhaisimman sidoksen alkukuukausi
  * Voidaan ajaa uudelleen: muistiinpanot muodostetaan joka kerta alusta.
@@ -33,7 +37,8 @@ const year = Number(data.jakso.slice(0, 4));
 const month = Number(data.jakso.slice(4, 6));
 const periodEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 
-const stats = { connections: 0, units: 0, noCustomer: 0, address: 0, email: 0, phone: 0, einvoice: 0, startDate: 0, lateStart: 0, contractNotes: 0, customerNotes: 0 };
+const CHANNEL_SOURCE = "Kärkisen verkkolaskuosoitteet (vanha järjestelmä)";
+const stats = { channels: 0, connections: 0, units: 0, noCustomer: 0, address: 0, email: 0, phone: 0, einvoice: 0, startDate: 0, lateStart: 0, contractNotes: 0, customerNotes: 0 };
 const db = await openTargetDb(args);
 try {
   await db.asService(async (tx) => {
@@ -71,6 +76,17 @@ try {
       if (email && email !== customer.email) stats.email++;
       if (phone && phone !== customer.phone) stats.phone++;
       if (e) stats.einvoice++;
+      // Kuolinpesä on laskutuksessa kuluttaja (aiempi tuonti luokitteli sen yhteisöksi).
+      await tx.query("update ml_customers set kind = 'person' where id = $1 and kind = 'company' and name ~* 'kuolinpes'", [customer.id]);
+      const channel = e ? channelFromEinvoice(e.osoite, e.valittaja, e.suoramaksu) : null;
+      if (channel) {
+        const set = await tx.query(
+          `update ml_customers set invoice_channel = $2, invoice_channel_source = $3
+            where id = $1 and (invoice_channel_source is null or invoice_channel_source = $3) returning id`,
+          [customer.id, channel, CHANNEL_SOURCE],
+        );
+        stats.channels += set.length;
+      }
       if (notes && notes !== customer.notes) stats.customerNotes++;
 
       const b = reg.maksajan_sidos;
@@ -117,5 +133,5 @@ try {
 
 console.log(`Huoneistoja ${stats.units}, asiakasta ei löytynyt ${stats.noCustomer}.`);
 console.log(`Laskutusosoite ${stats.address}, uusi sähköposti ${stats.email}, uusi puhelin ${stats.phone}, verkkolaskuosoite ${stats.einvoice}.`);
-console.log(`Liittymän alkupäivä sidoksista ${stats.connections}.`);
+console.log(`Liittymän alkupäivä sidoksista ${stats.connections}. Laskukanava verkkolaskuosoitteesta ${stats.channels}, muilta kanava puuttuu.`);
 console.log(`Sopimuksen alkupäivä ${stats.startDate} (jakson jälkeen alkavia ohitettu ${stats.lateStart}), sopimuksen lisätiedot ${stats.contractNotes}, asiakkaan lisätiedot ${stats.customerNotes}.`);

@@ -49,9 +49,10 @@ src/lib/readings/         lukeman kirjaus, tarkistukset, linkit, lukulista
 src/lib/billing/          laskentamoottori (calculate), laskutusajo (run), lisätieto (info)
 src/lib/sms/              tekstiviestien tulkinta ja vastaanotto, lähetys testitilassa
 src/lib/import/           Fennoa-aineiston tuonnin logiikka
+src/lib/fennoa/           laskukanava (channel), laskun muunnos (invoice), vienti (export), rajapinta (index: mock/test)
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0014 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0015 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu

@@ -98,13 +98,13 @@ export async function getInvoice(tx: Sql, orgId: string, id: string) {
   const [invoice] = await tx.query<{
     id: string; run_id: string; property_id: string; street_address: string; postal_code: string | null; city: string | null; legacy_id: string | null;
     customer_id: string | null; customer_name: string | null; customer_number: string | null; billing_street: string | null;
-    billing_postal_code: string | null; billing_city: string | null; status: "draft" | "excluded"; excluded_reason: string | null;
+    billing_postal_code: string | null; billing_city: string | null; invoice_channel: string | null; status: "draft" | "excluded"; excluded_reason: string | null;
     water_m3: string; wastewater_m3: string; net_eur: string; vat_eur: string; gross_eur: string;
     usage: { meterId: string; connectionKind: string; from: { readOn: string; reading: number } | null; to: { readOn: string; reading: number } | null; m3: number }[];
     issues: string[]; info: string | null; period_start: string; period_end: string; run_status: "draft" | "approved";
   }>(
     `select i.id, i.run_id, i.property_id, p.street_address, p.postal_code, p.city, p.legacy_id, i.customer_id, c.name as customer_name,
-            c.customer_number, c.billing_street, c.billing_postal_code, c.billing_city, i.status, i.excluded_reason,
+            c.customer_number, c.billing_street, c.billing_postal_code, c.billing_city, c.invoice_channel, i.status, i.excluded_reason,
             i.water_m3::text, i.wastewater_m3::text, i.net_eur::text, i.vat_eur::text, i.gross_eur::text, i.usage, i.issues, i.info,
             i.period_start::text, i.period_end::text, r.status as run_status
        from ml_invoices i

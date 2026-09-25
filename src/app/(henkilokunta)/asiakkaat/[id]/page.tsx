@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, DefinitionList, EmptyState, LinkButton, PageHeader, Panel, SectionTitle, Table, Td, Th } from "@/components/ui";
+import { Badge, DefinitionList, Notice, EmptyState, LinkButton, PageHeader, Panel, SectionTitle, Table, Td, Th } from "@/components/ui";
 import { requireStaff } from "@/lib/auth/current-user";
 import { getCustomer } from "@/lib/registry/queries";
 import { CONTRACT_ROLE, CUSTOMER_KIND } from "@/lib/labels";
 import { formatDate, isoDateHelsinki } from "@/lib/format";
 import { formatPhone } from "@/lib/validation/phone";
+import { CHANNEL_LABEL, channelProblems, isInvoiceChannel } from "@/lib/fennoa/channel";
 
 export const metadata = { title: "Asiakas" };
 
@@ -17,6 +18,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   if (!data) notFound();
   const { customer: c, contracts } = data;
   const today = isoDateHelsinki();
+  const problems = channelProblems(c);
   const address = [c.billing_street, [c.billing_postal_code, c.billing_city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
 
   return (
@@ -36,6 +38,17 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             { label: "Sähköposti", value: c.email },
             { label: "Laskutusosoite", value: address || null },
             {
+              label: "Laskukanava",
+              value: c.invoice_channel && isInvoiceChannel(c.invoice_channel) ? (
+                <>
+                  {CHANNEL_LABEL[c.invoice_channel]}
+                  {c.invoice_channel_source ? <span className="block text-xs text-ink/55">Lähde: {c.invoice_channel_source}</span> : null}
+                </>
+              ) : (
+                <Badge tone="alert">Ei asetettu</Badge>
+              ),
+            },
+            {
               label: "Verkkolasku",
               value: c.einvoice_address ? `${c.einvoice_address}${c.einvoice_operator ? `, ${c.einvoice_operator}` : ""}` : null,
             },
@@ -43,6 +56,17 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           ]}
         />
       </Panel>
+      {problems.length ? (
+        <div className="mt-4">
+          <Notice tone="warn" title="Laskua ei voi viedä Fennoaan">
+            <ul className="list-disc pl-5">
+              {problems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </Notice>
+        </div>
+      ) : null}
 
       <section className="mt-8">
         <SectionTitle>Kiinteistöt</SectionTitle>

@@ -204,12 +204,14 @@ export interface CustomerDetail {
   fennoa_customer_id: string | null;
   notes: string | null;
   legacy_id: string | null;
+  invoice_channel: string | null;
+  invoice_channel_source: string | null;
 }
 
 export async function getCustomer(tx: Sql, orgId: string, id: string) {
   const [customer] = await tx.query<CustomerDetail>(
     `select id, customer_number, kind, name, business_id, email, phone, billing_street, billing_postal_code, billing_city,
-            einvoice_address, einvoice_operator, fennoa_customer_id, notes, legacy_id
+            einvoice_address, einvoice_operator, fennoa_customer_id, notes, legacy_id, invoice_channel, invoice_channel_source
        from ml_customers where organization_id = $1 and id = $2`,
     [orgId, id],
   );

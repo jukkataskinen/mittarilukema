@@ -26,7 +26,8 @@ if (!file || !args.includes("--org") || !orgName) {
   process.exit(1);
 }
 
-const COMPANY = /\b(oy|oyj|ab|ky|ay|tmi|ry|rs|kunta|seurakunta|osakaskunta|yhtymä|kuolinpesä|oy:n|säätiö|osuuskunta)\b/i;
+// Kuolinpesä laskutetaan kuluttajana (kuluttajan e-lasku, account_type 2), joten se ei ole yritys.
+const COMPANY = /\b(oy|oyj|ab|ky|ay|tmi|ry|rs|kunta|seurakunta|osakaskunta|yhtymä|oy:n|säätiö|osuuskunta)\b/i;
 
 function parseCsv(text: string): string[][] {
   return text

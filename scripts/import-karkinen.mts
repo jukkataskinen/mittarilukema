@@ -44,7 +44,8 @@ type Unit = { nro: string; tunnus: string; osoite: string; maksaja: string; rivi
 
 const data = JSON.parse(await readFile(FILE, "utf8")) as { jakso: string; huoneistot: Unit[] };
 const periodMonth = `${data.jakso.slice(0, 4)}-${data.jakso.slice(4, 6)}-01`;
-const COMPANY = /\b(oy|oyj|ab|ky|ay|tmi|ry|kunta|seurakunta|osakaskunta|yhtymä|kuolinpesä|säätiö|osuuskunta)\b/i;
+// Kuolinpesä laskutetaan kuluttajana (kuluttajan e-lasku, account_type 2), joten se ei ole yritys.
+const COMPANY = /\b(oy|oyj|ab|ky|ay|tmi|ry|kunta|seurakunta|osakaskunta|yhtymä|säätiö|osuuskunta)\b/i;
 
 const price = (units: Unit[], code: string) => {
   const prices = new Set(units.flatMap((u) => u.rivit.filter((r) => r.koodi === code).map((r) => r.hinta)));

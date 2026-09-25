@@ -1,5 +1,6 @@
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { CUSTOMER_KIND } from "@/lib/labels";
+import { CHANNEL_LABEL, INVOICE_CHANNELS } from "@/lib/fennoa/channel";
 import { formatPhone } from "@/lib/validation/phone";
 import type { CustomerDetail } from "@/lib/registry/queries";
 
@@ -56,11 +57,25 @@ export function CustomerForm({
           </Field>
         </div>
       </fieldset>
+      <Field
+        label="Laskukanava"
+        htmlFor="invoiceChannel"
+        hint="Miten lasku lähtee Fennoasta. Ilman kanavaa laskua ei viedä Fennoaan. Sähköpostilasku tarvitsee sähköpostiosoitteen, e-lasku ja suoramaksu tilinumeron ja pankin BIC-tunnuksen, verkkolasku OVT-tunnuksen ja välittäjän."
+      >
+        <Select id="invoiceChannel" name="invoiceChannel" defaultValue={customer?.invoice_channel ?? ""}>
+          <option value="">Ei asetettu</option>
+          {INVOICE_CHANNELS.map((c) => (
+            <option key={c} value={c}>
+              {CHANNEL_LABEL[c]}
+            </option>
+          ))}
+        </Select>
+      </Field>
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Verkkolaskuosoite" htmlFor="einvoiceAddress">
+        <Field label="Verkkolasku- tai e-laskuosoite" htmlFor="einvoiceAddress">
           <Input id="einvoiceAddress" name="einvoiceAddress" defaultValue={customer?.einvoice_address ?? ""} />
         </Field>
-        <Field label="Välittäjä" htmlFor="einvoiceOperator">
+        <Field label="Välittäjä tai pankin BIC" htmlFor="einvoiceOperator">
           <Input id="einvoiceOperator" name="einvoiceOperator" defaultValue={customer?.einvoice_operator ?? ""} />
         </Field>
       </div>

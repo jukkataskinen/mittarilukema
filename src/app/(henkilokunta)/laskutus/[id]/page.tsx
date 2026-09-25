@@ -1,13 +1,27 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, EmptyState, Input, Notice, PageHeader, Stat, Table, Tabs, Td, Th } from "@/components/ui";
+import { Badge, Button, EmptyState, Field, Input, Notice, PageHeader, Panel, SectionTitle, Stat, Table, Tabs, Td, Th } from "@/components/ui";
 import { FormError } from "@/components/FormError";
 import { requireRole } from "@/lib/auth/current-user";
 import { getRun, listRunInvoices, RUN_KIND, scopeLabel } from "@/lib/billing/queries";
 import { formatDate, formatDateTime, formatEur, formatNumber } from "@/lib/format";
-import { approveRunAction, deleteRunAction } from "../actions";
+import { approveRunAction, deleteRunAction, exportRunAction } from "../actions";
+import { CHANNEL_LABEL, isInvoiceChannel } from "@/lib/fennoa/channel";
+import { fennoaEnvironment } from "@/lib/fennoa";
+import { latestExports, runExportStatus } from "@/lib/fennoa/export";
 
 export const metadata = { title: "Laskutusajo" };
+// Fennoa-vienti lähettää laskuja erissä; yksi erä kestää noin 15 sekuntia.
+export const maxDuration = 60;
+
+const EXPORT_STATUS: Record<string, { label: string; tone: "ok" | "warn" | "alert" | "neutral" }> = {
+  exported: { label: "Viety", tone: "ok" },
+  pending: { label: "Kesken, tarkista Fennoasta", tone: "warn" },
+  mismatch: { label: "Poikkeama", tone: "alert" },
+  blocked: { label: "Estetty", tone: "alert" },
+  failed: { label: "Virhe", tone: "alert" },
+};
+const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 const FILTERS = [
   { key: "kaikki", label: "Kaikki", filter: "all" },
@@ -24,10 +38,17 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const data = await ctx.run(async (tx) => {
     const run = await getRun(tx, orgId, id);
     if (!run) return null;
-    return { run, invoices: await listRunInvoices(tx, orgId, id, active.filter, sp.q) };
+    const env = fennoaEnvironment();
+    const invoices = await listRunInvoices(tx, orgId, id, active.filter, sp.q);
+    if (run.status !== "approved" || !env) return { run, invoices, env, status: null, exports: new Map<string, Awaited<ReturnType<typeof latestExports>>[number]>() };
+    const [status, rows] = await Promise.all([runExportStatus(tx, orgId, id, env), latestExports(tx, orgId, id, env)]);
+    return { run, invoices, env, status, exports: new Map(rows.map((r) => [r.invoice_id, r])) };
   });
   if (!data) notFound();
-  const { run, invoices } = data;
+  const { run, invoices, env, status, exports } = data;
+  const today = new Date();
+  const due = new Date(today.getTime() + 14 * 86_400_000);
+  const summary = sp.viety !== undefined ? sp : null;
   const draft = run.status === "draft";
   const tabHref = (key: string) => `/laskutus/${id}${key === "kaikki" ? "" : `?nayta=${key}`}`;
 
@@ -56,7 +77,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           </Notice>
         ) : (
           <Notice tone="ok" title="Hyväksytty">
-            {run.approved_by_name ?? "Käyttäjä"} hyväksyi ajon {formatDateTime(run.approved_at)}. Laskuja ei ole lähetetty Fennoaan.
+            {run.approved_by_name ?? "Käyttäjä"} hyväksyi ajon {formatDateTime(run.approved_at)}.
           </Notice>
         )}
       </div>
@@ -72,6 +93,59 @@ export default async function RunPage({ params, searchParams }: { params: Promis
             <Button variant="secondary">Poista luonnos</Button>
           </form>
         </div>
+      ) : null}
+
+      {status && env ? (
+        <section className="mt-8">
+          <SectionTitle>Vienti Fennoaan {env === "test" ? "(testiympäristö)" : "(testitila, ei yhteyttä Fennoaan)"}</SectionTitle>
+          <Panel>
+            {summary ? (
+              <div className="mb-4">
+                <Notice tone={Number(summary.estetty) || Number(summary.poikkeama) || Number(summary.virhe) ? "warn" : "ok"} title="Vientierä käsitelty">
+                  Viety {summary.viety}, estetty {summary.estetty}, poikkeama {summary.poikkeama}, virhe {summary.virhe}. Lähettämättä {summary.jaljella}.
+                </Notice>
+              </div>
+            ) : null}
+            <p className="text-sm text-ink/70">
+              Laskut viedään Fennoaan luonnoksiksi, ja ne hyväksytään ja lähetetään Fennoassa. Laskukanava asetetaan jokaiselle laskulle asiakkaan kanavan mukaan,
+              ja viennin jälkeen kanava luetaan Fennoasta takaisin. Lasku, jonka asiakkaalta puuttuu laskukanava tai sen tiedot, estetään eikä sitä lähetetä muuta kautta.
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm font-semibold">Laskukanavat tässä ajossa</p>
+                <ul className="mt-2 grid gap-1 text-sm">
+                  {status.byChannel.map((c) => (
+                    <li key={c.channel ?? "none"} className="flex justify-between gap-4">
+                      <span className={c.channel ? "" : "font-semibold text-coral"}>{c.channel && isInvoiceChannel(c.channel) ? CHANNEL_LABEL[c.channel] : "Laskukanava puuttuu"}</span>
+                      <span className="tabular">{c.n}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Viennin tila</p>
+                <ul className="mt-2 grid gap-1 text-sm">
+                  {Object.entries(EXPORT_STATUS).map(([k, v]) => (
+                    <li key={k} className="flex justify-between gap-4">
+                      <span>{v.label}</span>
+                      <span className="tabular">{status.byStatus[k] ?? 0}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <form action={exportRunAction} className="mt-5 flex flex-wrap items-end gap-4">
+              <input type="hidden" name="runId" value={id} />
+              <Field label="Laskupäivä" htmlFor="invoiceDate">
+                <Input id="invoiceDate" name="invoiceDate" type="date" defaultValue={iso(today)} required />
+              </Field>
+              <Field label="Eräpäivä" htmlFor="dueDate">
+                <Input id="dueDate" name="dueDate" type="date" defaultValue={iso(due)} required />
+              </Field>
+              <Button>{env === "test" ? "Vie seuraavat 25 laskua Fennoan testiin" : "Kokeile vientiä testitilassa"}</Button>
+            </form>
+          </Panel>
+        </section>
       ) : null}
 
       <div className="mt-8">
@@ -96,6 +170,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                 <Th numeric>Veroton</Th>
                 <Th numeric>Yhteensä</Th>
                 <Th>Huomautukset</Th>
+                {status ? <Th>Fennoa</Th> : null}
               </tr>
             </thead>
             <tbody>
@@ -125,6 +200,21 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                       <span className="text-sm text-coral">{i.issues.length === 1 ? i.issues[0] : `${i.issues.length} huomautusta`}</span>
                     ) : null}
                   </Td>
+                  {status ? (
+                    <Td>
+                      {(() => {
+                        const e = exports.get(i.id);
+                        if (!e) return i.status === "excluded" ? null : <span className="text-sm text-ink/50">Ei viety</span>;
+                        const st = EXPORT_STATUS[e.status] ?? { label: e.status, tone: "neutral" as const };
+                        return (
+                          <>
+                            <Badge tone={st.tone}>{st.label}</Badge>
+                            {e.message ? <span className="mt-1 block text-xs text-ink/65">{e.message}</span> : null}
+                          </>
+                        );
+                      })()}
+                    </Td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

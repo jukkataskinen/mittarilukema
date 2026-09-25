@@ -7,6 +7,7 @@ import { getInvoice } from "@/lib/billing/queries";
 import { CONNECTION_KIND } from "@/lib/labels";
 import { formatDate, formatEur, formatNumber } from "@/lib/format";
 import { excludeInvoiceAction } from "../../actions";
+import { CHANNEL_LABEL, isInvoiceChannel } from "@/lib/fennoa/channel";
 
 export const metadata = { title: "Lasku" };
 
@@ -70,6 +71,10 @@ export default async function InvoicePage({
               },
               { label: "Asiakasnumero", value: i.customer_number },
               { label: "Laskutusosoite", value: [i.billing_street, [i.billing_postal_code, i.billing_city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || null },
+              {
+                label: "Laskukanava",
+                value: i.invoice_channel && isInvoiceChannel(i.invoice_channel) ? CHANNEL_LABEL[i.invoice_channel] : i.customer_id ? <Badge tone="alert">Ei asetettu</Badge> : null,
+              },
               {
                 label: "Kiinteistö",
                 value: (

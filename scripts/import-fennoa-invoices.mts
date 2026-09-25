@@ -41,7 +41,8 @@ if (!orgName) {
   process.exit(1);
 }
 
-const COMPANY = /\b(oy|oyj|ab|ky|ay|tmi|ry|kunta|seurakunta|osakaskunta|yhtymä|kuolinpesä|säätiö|osuuskunta)\b/i;
+// Kuolinpesä laskutetaan kuluttajana (kuluttajan e-lasku, account_type 2), joten se ei ole yritys.
+const COMPANY = /\b(oy|oyj|ab|ky|ay|tmi|ry|kunta|seurakunta|osakaskunta|yhtymä|säätiö|osuuskunta)\b/i;
 const WATER = /^(vesi|kylmävesi|veden|perusmaksu)/i;
 const WASTE = /jäte/i;
 const dayBefore = (iso: string) => new Date(Date.parse(`${iso}T12:00:00Z`) - 864e5).toISOString().slice(0, 10);

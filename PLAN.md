@@ -86,7 +86,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Kärkisen asiakastiedot: laskutusosoitteet, verkkolaskuosoitteet ja sopimusten alkupäivät rekistereistä (`npm run karkinen:taydenna`)
 - [x] Kärkisen tasaus vanhan järjestelmän mallin mukaan, hintahistoria, mittarit ja lukemat vuoden 2025 tasauslaskuilta; tasauslaskut täsmäävät 56/57
 - [ ] Kärkisen tammi–elokuun 2026 vanhassa järjestelmässä laskutetut arviot tasausta varten (BLOCKERS 10)
-- [ ] Laskujen vienti Fennoaan (testiympäristöön, ei tuotantoon)
+- [~] Laskujen vienti Fennoaan: toteutettu (laskukanava pakollinen, takaisinluku ja tarkistus), testattu testitilassa; testiympäristön tunnukset odottavat (BLOCKERS 13)
 
 ### Käyttöönotto (maalis–huhtikuu 2027)
 - [ ] Syyskuun 2026 laskujen uudelleenlaskenta ja vertailu (tammikuu 2027)

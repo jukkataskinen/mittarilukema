@@ -6,6 +6,8 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/current-user";
 import { emptyToNull, fail, parseForm } from "@/lib/forms";
 import { approveBillingRun, BillingRunError, createBillingRun, deleteDraftRun, setInvoiceExcluded } from "@/lib/billing/run";
+import { fennoaClient, FennoaError } from "@/lib/fennoa";
+import { exportRunToFennoa, FennoaExportError } from "@/lib/fennoa/export";
 
 const date = (msg: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, msg);
 
@@ -85,4 +87,33 @@ export async function excludeInvoiceAction(formData: FormData) {
   }
   revalidatePath(back);
   redirect(back);
+}
+
+export async function exportRunAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const runId = z.string().uuid().parse(formData.get("runId"));
+  const back = `/laskutus/${runId}`;
+  const input = parseForm(
+    z.object({ invoiceDate: date("Anna laskupäivä."), dueDate: date("Anna eräpäivä.") }),
+    formData,
+    back,
+  );
+  let client;
+  try {
+    client = fennoaClient();
+  } catch (err) {
+    fail(back, err instanceof FennoaError ? err.message : "Fennoa-yhteyttä ei ole määritetty.");
+  }
+  let summary;
+  try {
+    summary = await exportRunToFennoa(ctx.run.bind(ctx), client!, {
+      organizationId: ctx.org.organizationId, userId: ctx.user.id, runId, ...input,
+    });
+  } catch (err) {
+    if (err instanceof FennoaExportError) fail(back, err.message);
+    throw err;
+  }
+  revalidatePath(back);
+  const parts = [`viety=${summary.exported}`, `estetty=${summary.blocked}`, `poikkeama=${summary.mismatch}`, `virhe=${summary.failed}`, `jaljella=${summary.remaining}`];
+  redirect(`${back}?${parts.join("&")}`);
 }
