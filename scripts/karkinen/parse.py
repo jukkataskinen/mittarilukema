@@ -65,7 +65,8 @@ def parse_charges(path):
     units, cur = [], None
     for page in doc:
         rows = collections.defaultdict(list)
-        for w in page.get_text("words"):
+        page_words = page.get_text("words")
+        for w in page_words:
             rows[round(w[1] / 2)].append(w)
         for key in sorted(rows):
             ws = sorted(rows[key], key=lambda w: w[0])
@@ -77,7 +78,11 @@ def parse_charges(path):
                 cur = {
                     "nro": ws[0][4],
                     "osoite": " ".join(w[4] for w in ws if 50 < w[0] < 185),
-                    "maksaja": " ".join(w[4] for w in ws if w[0] > 440 and not re.fullmatch(r"\d+", w[4])),
+                    # Maksajan nimi voi olla pari pistettä huoneistorivin alapuolella (eri pyöristysrivillä).
+                    "maksaja": " ".join(
+                        w[4] for w in sorted((w for w in page_words if w[0] > 440 and abs(w[1] - ws[0][1]) <= 4), key=lambda w: (round(w[1]), w[0]))
+                        if not re.fullmatch(r"\d+", w[4])
+                    ),
                     "rivit": [],
                     "yhteensa": None,
                 }
@@ -249,6 +254,16 @@ def parse_einvoices(path, stats):
     return out
 
 
+def best_by(cands, score, margin=0.05):
+    """Yksi ehdokas, jos sen pistemäärä on vähintään 0,9 ja selvästi muita parempi; muuten tyhjä."""
+    ranked = sorted(cands, key=score, reverse=True)
+    if not ranked or score(ranked[0]) < 0.9:
+        return []
+    if len(ranked) > 1 and score(ranked[0]) - score(ranked[1]) < margin:
+        return []
+    return ranked[:1]
+
+
 def person_tokens(p):
     # Sukunimi ja ensimmäinen etunimi.
     first = re.findall(r"[a-zåäö]{3,}", (p["etunimi"] or "").lower())[:1]
@@ -365,13 +380,16 @@ def main():
         unit_by_addr[norm(u["osoite"])].append(u)
     loan_miss = 0
     for loan in loans:
+        sim = lambda u: difflib.SequenceMatcher(None, norm(loan["osoite"]), norm(u["osoite"])).ratio()
         c = [u for u in unit_by_addr.get(norm(loan["osoite"]), []) if u["laina"] is None]
         if len(c) != 1:
             t = tokens(loan["osakas"])
-            c = [u for u in units if u["laina"] is None and t and len(t & tokens(u["maksaja"])) >= min(2, len(t))]
+            named = [u for u in units if u["laina"] is None and t and len(t & tokens(u["maksaja"])) >= min(2, len(t))]
+            # Sama osakas voi omistaa useamman huoneiston: valitaan osoitteeltaan selvästi lähin.
+            c = best_by(named, sim) if len(named) > 1 else named
         if len(c) != 1:
             # Kirjoitusasu vaihtelee (esim. "Kärkistenlaiturintie" / "Kärkisten laiturintie").
-            c = [u for u in units if u["laina"] is None and difflib.SequenceMatcher(None, norm(loan["osoite"]), norm(u["osoite"])).ratio() > 0.9]
+            c = best_by([u for u in units if u["laina"] is None and sim(u) > 0.9], sim)
         if len(c) == 1:
             c[0]["laina"] = loan
         else:

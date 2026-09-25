@@ -159,3 +159,27 @@ describe("epäonnistuneet laskut", () => {
     expect(inner.invoices.size).toBe(1);
   });
 });
+
+describe("kanavan varmistus osoitteesta", () => {
+  it("kun Fennoa ei palauta toimitustapaa, sama osoite varmistaa kanavan; eri osoite on poikkeama", async () => {
+    const run = await db.asUser(a.staff.sub, (tx) =>
+      createBillingRun(tx, { organizationId: a.id, userId: a.staff.id, periodStart: "2024-03-31", periodEnd: "2024-09-30", note: "osoitetesti" }),
+    );
+    const make = (match: boolean): FennoaClient => {
+      const inner = mockFennoa();
+      return {
+        environment: "mock",
+        addInvoice: (form) => inner.addInvoice(form),
+        getInvoice: async (id) => ({ ...(await inner.getInvoice(id)), deliveryMethod: null, einvoiceMatch: match }),
+      };
+    };
+    const input = { organizationId: a.id, userId: a.staff.id, runId: run.runId, ...dates };
+    const bad = await exportRunToFennoa(runner(a.staff.sub), make(false), input);
+    expect(bad).toMatchObject({ mismatch: 1, exported: 0 });
+    await db.asService((tx) => tx.query("delete from ml_fennoa_exports where run_id = $1", [run.runId]));
+    const ok = await exportRunToFennoa(runner(a.staff.sub), make(true), input);
+    expect(ok).toMatchObject({ exported: 1, mismatch: 0 });
+    const [row] = await db.asUser(a.staff.sub, (tx) => tx.query<{ message: string }>("select message from ml_fennoa_exports where run_id = $1", [run.runId]));
+    expect(row.message).toMatch(/varmistettu Fennoan tallentamasta osoitteesta/);
+  });
+});

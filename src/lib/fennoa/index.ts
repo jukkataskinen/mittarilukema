@@ -15,6 +15,8 @@ export interface FennoaReadBack {
   gross: number | null;
   /** Vastauksen toimitustapaan liittyvät kentät (nimi=arvo) poikkeaman selvittämiseen; ei osoitteita. */
   deliveryFields?: string[];
+  /** Onko Fennoan tallentama verkkolasku- tai sähköpostiosoite sama kuin lähetetty (null = kenttää ei ole). */
+  einvoiceMatch?: boolean | null;
 }
 
 export interface FennoaClient {
@@ -49,7 +51,7 @@ export function mockFennoa(): FennoaClient & { invoices: Map<string, Record<stri
     async getInvoice(id) {
       const f = invoices.get(id);
       if (!f) throw new FennoaError("Laskua ei löytynyt.", 404);
-      return { deliveryMethod: f.delivery_method ?? null, gross: grossOf(f) };
+      return { deliveryMethod: f.delivery_method ?? null, gross: grossOf(f), einvoiceMatch: f.einvoice_address ? true : null };
     },
   };
 }
@@ -107,6 +109,12 @@ function httpClient(user: string, key: string): FennoaClient {
         deliveryMethod: findKey(body, "delivery_method"),
         gross: toNumber(findKey(body, "total_gross") ?? findKey(body, "gross_total") ?? findKey(body, "total_sum")),
         deliveryFields: deliveryFields(body, expected),
+        einvoiceMatch: (() => {
+          const stored = findKey(body, "einvoice_address");
+          if (stored === null || expected?.einvoiceAddress === undefined) return null;
+          const n = (v: string) => v.replace(/\s/g, "").toUpperCase();
+          return n(stored) === n(expected.einvoiceAddress);
+        })(),
       };
     },
   };

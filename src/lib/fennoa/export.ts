@@ -143,8 +143,13 @@ export async function exportRunToFennoa(
       }
       await sleep(client.environment === "mock" ? 0 : PAUSE_MS);
       const problems: string[] = [];
-      if (readError) problems.push(`Laskua ei voitu lukea takaisin (${readError}). Tarkista laskukanava Fennoasta.`);
-      else if (back.deliveryMethod !== expected) {
+      // Fennoan laskun haku ei palauta toimitustapaa (testi 25.9.2026: luonnoksen toimitustapa oli
+      // oikein, mutta kenttää ei ollut vastauksessa). Sähköisen laskun kanava katsotaan silloin
+      // varmistetuksi, jos Fennoan tallentama osoite on sama kuin lähetetty.
+      const confirmedByAddress = back.deliveryMethod === null && expected !== "postal" && back.einvoiceMatch === true;
+      if (readError) {
+        problems.push(`Laskua ei voitu lukea takaisin (${readError}). Tarkista laskukanava Fennoasta.`);
+      } else if (back.deliveryMethod !== expected && !confirmedByAddress) {
         problems.push(
           `Fennoa tallensi laskukanavaksi "${back.deliveryMethod ?? "tyhjä"}", odotettiin "${expected}" (${CHANNEL_LABEL[item.build.channel as InvoiceChannel]}). Korjaa lasku Fennoassa ennen lähetystä.` +
             (back.deliveryFields?.length ? ` Fennoan kentät: ${back.deliveryFields.join(", ")}.` : ""),
@@ -155,7 +160,11 @@ export async function exportRunToFennoa(
       }
       results.push({
         exportId: item.exportId, status: problems.length ? "mismatch" : "exported", fennoaId: id, confirmed: back.deliveryMethod,
-        confirmedGross: back.gross, message: problems.length ? problems.join(" ") : back.gross === null ? "Summaa ei saatu tarkistettua Fennoan vastauksesta." : null,
+        confirmedGross: back.gross,
+        message: problems.length
+          ? problems.join(" ")
+          : [confirmedByAddress ? "Laskukanava varmistettu Fennoan tallentamasta osoitteesta." : null, back.gross === null ? "Summaa ei saatu tarkistettua Fennoan vastauksesta." : null]
+              .filter(Boolean).join(" ") || null,
       });
     } catch (err) {
       results.push({
