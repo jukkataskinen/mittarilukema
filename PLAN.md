@@ -62,7 +62,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 
 ### Tiedot (vko 43–47)
 - [~] mittarilukema.fi:n varmuuskopio ja tietokannan rakenne (BLOCKERS 1)
-- [~] Tietomalli ja migraatiot: luonnos tehty (0001–0004), tarkistetaan varmuuskopiota vasten
+- [~] Tietomalli ja migraatiot: 0001–0014 tehty, tarkistetaan varmuuskopiota vasten
 - [ ] Tiedonsiirto mittarilukema.fi:stä kopioon
 - [x] Ylläpitonäkymät: kiinteistöt, mittarit, asiakkaat, sopimukset, hinnasto
 - [x] Asiakasluettelon tuonti CSV:stä (857 riviä Joutsasta)
@@ -81,7 +81,8 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 ### Laskutus (Joutsa vko 50, Kärkinen aloituksen mukaan)
 - [x] Toteutuneen kulutuksen laskutus (Joutsa): laskentamoottori, vertailu Fennoan laskuihin (853 täsmää) ja laskutusajo tarkistuksineen
 - [x] Loppulasku omistajanvaihdoksessa (vaihtopäivän lukemalla laskutusajo jakaa laskun)
-- [~] Arviolasku ja vuositasaus (Kärkinen): laskenta ja laskutusajot valmiit; Kärkisten hinnasto, lainaosuuden laskentatapa ja käytäntöjen vahvistus auki (BLOCKERS 3 ja 10)
+- [~] Arviolasku ja vuositasaus (Kärkinen): laskenta ja laskutusajot valmiit; käytäntöjen vahvistus auki (BLOCKERS 10)
+- [x] Kärkisen rekisteri, hinnasto, kiinteistön maksut ja lainaosuudet ennakkolistasta (0014): syyskuun 2026 arviolaskut täsmäävät listaan 160/160 (`npm run karkinen:tuo`, `npm run karkinen:vertaa`)
 - [ ] Laskujen vienti Fennoaan (testiympäristöön, ei tuotantoon)
 
 ### Käyttöönotto (maalis–huhtikuu 2027)

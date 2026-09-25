@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { billingMonths, calculateBill, meterUsage, type BillingInput, type BillingTariff } from "@/lib/billing/calculate";
+import { billingMonths, calculateBill, loanForPeriod, meterUsage, type BillingInput, type BillingTariff } from "@/lib/billing/calculate";
 
 const t = (p: Partial<BillingTariff> & Pick<BillingTariff, "chargeType" | "priceEur">): BillingTariff => ({
   connectionKind: null,
@@ -148,5 +148,91 @@ describe("Joutsan lasku", () => {
   it("puuttuva perusmaksuluokka on huomautus", () => {
     const r = calculateBill(base({ connections: base().connections.map((c) => ({ ...c, feeClass: null })) }));
     expect(r.issues.join()).toMatch(/perusmaksuluokka puuttuu/);
+  });
+});
+
+// Kärkinen: verolliset hinnat 1.1.2026 alkaen, perusmaksu kiinteistöä kohden (jätevesiliittymällä).
+const KARKINEN: BillingTariff[] = [
+  t({ chargeType: "basic_fee", connectionKind: "wastewater", feeClass: "okt", name: "Perusmaksu", priceEur: 51.36, validFrom: "2026-01-01", priceIncludesVat: true }),
+  t({ chargeType: "usage_fee", connectionKind: "water", priceEur: 2.57, validFrom: "2026-01-01", priceIncludesVat: true }),
+  t({ chargeType: "usage_fee", connectionKind: "wastewater", priceEur: 3.28, validFrom: "2026-01-01", priceIncludesVat: true }),
+];
+
+const karkinen = (over: Partial<BillingInput> = {}): BillingInput => ({
+  periodStart: "2026-08-31",
+  periodEnd: "2026-09-30",
+  areaId: null,
+  mode: "estimate",
+  estimateM3: 2,
+  connections: [
+    { id: "w", kind: "water", feeClass: "none", connectedOn: "2026-01-01", disconnectedOn: null },
+    { id: "ww", kind: "wastewater", feeClass: "okt", connectedOn: "2026-01-01", disconnectedOn: null },
+  ],
+  meters: [],
+  tariffs: KARKINEN,
+  ...over,
+});
+
+describe("Kärkisen arviolasku", () => {
+  it("verollinen hinta: vero lasketaan rivin summasta taaksepäin", () => {
+    const r = calculateBill(karkinen());
+    expect(r.issues).toEqual([]);
+    expect(r.lines.map((l) => [l.description, l.quantity, l.net, l.vat])).toEqual([
+      ["Vesi, arvio", 2, 4.1, 1.04],
+      ["Jätevesi, arvio", 2, 5.23, 1.33],
+      ["Perusmaksu", 1, 40.92, 10.44],
+    ]);
+    expect(r.gross).toBe(63.06);
+  });
+
+  it("kiinteistön maksut ja lainaosuuden loppuerä kuten ennakkolistassa", () => {
+    const r = calculateBill(
+      karkinen({
+        propertyCharges: [
+          { name: "Lisäperusmaksu", unit: "month", priceEur: 39, vatPercent: 25.5, priceIncludesVat: true, validFrom: "2026-01-01", validTo: null },
+          { name: "Liittymän lisämaksu", unit: "month", priceEur: 72, vatPercent: 0, priceIncludesVat: true, validFrom: "2026-01-01", validTo: null },
+          { name: "Jäsenmaksu", unit: "once", priceEur: 100, vatPercent: 0, priceIncludesVat: true, validFrom: "2026-10-01", validTo: null },
+        ],
+        loans: [{ balance: 245.08, balanceDate: "2026-08-31", monthlyAmortization: 40.03, interestPercent: 5, finalMonth: "2026-09-01" }],
+      }),
+    );
+    expect(r.lines.slice(3).map((l) => [l.description, l.net, l.vat])).toEqual([
+      ["Lisäperusmaksu", 31.08, 7.92],
+      ["Liittymän lisämaksu", 72, 0],
+      ["Pääoman lyhennys", 40.03, 0],
+      ["Pääoman lyhennys", 205.05, 0],
+      ["Korko 5 %", 1.02, 0],
+    ]);
+    expect([r.vat, r.gross]).toEqual([20.73, 420.16]);
+  });
+
+  it("perusmaksuton liittymä ei tuota huomautusta", () => {
+    const r = calculateBill(karkinen({ connections: [{ id: "w", kind: "water", feeClass: "none", connectedOn: "2026-01-01", disconnectedOn: null }] }));
+    expect(r.issues).toEqual([]);
+    expect(r.lines.map((l) => l.description)).toEqual(["Vesi, arvio"]);
+  });
+
+  it("lainan korko lasketaan kuukausittain kuun alun saldosta", () => {
+    const loan = { balance: 753.91, balanceDate: "2026-08-31", monthlyAmortization: 38.06, interestPercent: 5, finalMonth: null };
+    expect(loanForPeriod(loan, ["2026-09-01"])).toEqual({ amortization: 38.06, payoff: 0, interest: 3.14, balanceAfter: 715.85 });
+    expect(loanForPeriod(loan, ["2026-10-01"])).toMatchObject({ amortization: 38.06, interest: 2.98 });
+    expect(loanForPeriod({ ...loan, balance: 20 }, ["2026-09-01", "2026-10-01"])).toMatchObject({ amortization: 20, interest: 0.08, balanceAfter: 0 });
+  });
+
+  it("lainaosuus ilman kuukausierää on huomautus, ei laskuriviä", () => {
+    const r = calculateBill(karkinen({ loans: [{ balance: 4500, balanceDate: "2026-08-31", monthlyAmortization: 0, interestPercent: 5, finalMonth: null }] }));
+    expect(r.lines.some((l) => l.description.startsWith("Pääoman"))).toBe(false);
+    expect(r.issues.join()).toMatch(/ei ole kuukausierää/);
+  });
+
+  it("tasauslaskulle ei tule kiinteistön maksuja eikä lainaa", () => {
+    const r = calculateBill(
+      karkinen({
+        mode: "settlement",
+        billedEstimateM3: 2,
+        propertyCharges: [{ name: "Lisäperusmaksu", unit: "month", priceEur: 39, vatPercent: 25.5, priceIncludesVat: true, validFrom: "2026-01-01", validTo: null }],
+      }),
+    );
+    expect(r.lines.some((l) => l.description === "Lisäperusmaksu")).toBe(false);
   });
 });

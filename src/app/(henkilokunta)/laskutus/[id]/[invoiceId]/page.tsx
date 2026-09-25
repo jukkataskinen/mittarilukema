@@ -105,6 +105,7 @@ export default async function InvoicePage({
               <Th numeric>Hinta</Th>
               <Th numeric>Alv</Th>
               <Th numeric>Veroton</Th>
+              <Th numeric>Verollinen</Th>
             </tr>
           </thead>
           <tbody>
@@ -114,9 +115,12 @@ export default async function InvoicePage({
                 <Td numeric>
                   {formatNumber(l.quantity)} {UNIT[l.unit]}
                 </Td>
-                <Td numeric>{priceFmt.format(Number(l.unit_price))} €</Td>
+                <Td numeric>
+                  {priceFmt.format(Number(l.unit_price))} €{l.price_includes_vat && Number(l.vat_percent) > 0 ? " sis. alv" : ""}
+                </Td>
                 <Td numeric>{formatNumber(l.vat_percent)} %</Td>
                 <Td numeric>{formatEur(l.net_eur)}</Td>
+                <Td numeric>{formatEur(l.gross_eur)}</Td>
               </tr>
             ))}
           </tbody>

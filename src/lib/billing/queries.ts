@@ -115,8 +115,13 @@ export async function getInvoice(tx: Sql, orgId: string, id: string) {
     [orgId, id],
   );
   if (!invoice) return null;
-  const lines = await tx.query<{ line_no: number; description: string; quantity: string; unit: "m3" | "month" | "year"; unit_price: string; vat_percent: string; net_eur: string }>(
-    "select line_no, description, quantity::text, unit, unit_price::text, vat_percent::text, net_eur::text from ml_invoice_lines where invoice_id = $1 order by line_no",
+  const lines = await tx.query<{
+    line_no: number; description: string; quantity: string; unit: "m3" | "month" | "year"; unit_price: string; vat_percent: string; net_eur: string;
+    gross_eur: string; price_includes_vat: boolean;
+  }>(
+    `select line_no, description, quantity::text, unit, unit_price::text, vat_percent::text, net_eur::text,
+            (net_eur + coalesce(vat_eur, round(net_eur * vat_percent / 100, 2)))::text as gross_eur, price_includes_vat
+       from ml_invoice_lines where invoice_id = $1 order by line_no`,
     [id],
   );
   const meters = await tx.query<{ id: string; meter_number: string | null; multiplier: string }>(

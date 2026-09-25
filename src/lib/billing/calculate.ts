@@ -63,6 +63,29 @@ export interface BillingTariff {
   vatPercent: number;
   validFrom: string;
   validTo: string | null;
+  /** Hinta sisältää arvonlisäveron: rivin summa lasketaan ensin ja vero siitä taaksepäin. */
+  priceIncludesVat?: boolean;
+}
+
+/** Kiinteistön oma maksu: kuukausittain tai kerran (validFrom-päivänä). */
+export interface PropertyCharge {
+  name: string;
+  unit: "month" | "once";
+  priceEur: number;
+  vatPercent: number;
+  priceIncludesVat: boolean;
+  validFrom: string;
+  validTo: string | null;
+}
+
+/** Lainaosuus: saldo päivänä balanceDate, kuukausilyhennys ja korko. */
+export interface PropertyLoan {
+  balance: number;
+  balanceDate: string;
+  monthlyAmortization: number;
+  interestPercent: number;
+  /** Kuukauden 1. päivä, jona koko jäljellä oleva saldo peritään. */
+  finalMonth: string | null;
 }
 
 export interface BillingInput {
@@ -81,6 +104,8 @@ export interface BillingInput {
   estimateM3?: number;
   /** settlement: arviolaskuilla jo laskutettu kulutus m³. */
   billedEstimateM3?: number;
+  propertyCharges?: PropertyCharge[];
+  loans?: PropertyLoan[];
 }
 
 export interface BillingLine {
@@ -92,6 +117,9 @@ export interface BillingLine {
   unitPrice: number;
   vatPercent: number;
   net: number;
+  /** Rivin arvonlisävero. Verollisella hinnalla johdettu summasta, muuten net × alv (pyöristämättä). */
+  vat: number;
+  priceIncludesVat: boolean;
 }
 
 export interface MeterUsage {
@@ -124,9 +152,34 @@ export const NEGATIVE_CREDIT_LIMIT_M3 = 50;
 const DAY = 86_400_000;
 const toDay = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / DAY;
 const fromDay = (d: number) => new Date(d * DAY).toISOString().slice(0, 10);
-const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+// Puolikkaat poispäin nollasta, kuten laskutusjärjestelmissä. Pieni lisäys
+// skaalauksen jälkeen korjaa liukuluvun: 0,5 × 2,57 = 1,2849999… → 1,29.
+const roundTo = (n: number, f: number) => (Math.sign(n) * Math.round(Math.abs(n) * f + 1e-7)) / f;
+const round2 = (n: number) => roundTo(n, 100);
+const round3 = (n: number) => roundTo(n, 1000);
 const addDays = (iso: string, n: number) => fromDay(toDay(iso) + n);
+
+/**
+ * Laskurivi hinnasta. Verollinen hinta: summa = määrä × hinta senteille,
+ * veroton = summa / (1 + alv) senteille, vero = erotus (vanhan järjestelmän
+ * tapa, jolloin laskun loppusumma täsmää sentilleen). Veroton hinta: veroton =
+ * määrä × hinta senteille, vero lasketaan laskun lopussa kaikista riveistä.
+ */
+function makeLine(
+  base: Pick<BillingLine, "kind" | "connectionKind" | "description" | "unit">,
+  quantity: number,
+  unitPrice: number,
+  vatPercent: number,
+  priceIncludesVat: boolean | undefined,
+): BillingLine {
+  if (priceIncludesVat) {
+    const gross = round2(quantity * unitPrice);
+    const net = round2((gross * 100) / (100 + vatPercent));
+    return { ...base, quantity, unitPrice, vatPercent, net, vat: round2(gross - net), priceIncludesVat: true };
+  }
+  const net = round2(quantity * unitPrice);
+  return { ...base, quantity, unitPrice, vatPercent, net, vat: (net * vatPercent) / 100, priceIncludesVat: false };
+}
 
 /** Kuukausien alkupäivät jaksossa (start, end]: jakso 30.9.–31.3. → loka–maalis. */
 export function billingMonths(start: string, end: string): string[] {
@@ -241,7 +294,7 @@ export function calculateBill(input: BillingInput): BillingResult {
         issues.push(`Käyttömaksun hinta puuttuu: ${label}, ${fromDay(d)}.`);
         return;
       }
-      const key = `${t.priceEur}|${t.vatPercent}`;
+      const key = `${t.priceEur}|${t.vatPercent}|${t.priceIncludesVat ? 1 : 0}`;
       parts.set(key, { t, days: (parts.get(key)?.days ?? 0) + 1 });
     }
     let left = m3;
@@ -249,7 +302,7 @@ export function calculateBill(input: BillingInput): BillingResult {
     entries.forEach((p, i) => {
       const q = i === entries.length - 1 ? round3(left) : round3((m3 * p.days) / days);
       left -= q;
-      lines.push({ kind: "usage", connectionKind: kind, description: label, quantity: q, unit: "m3", unitPrice: p.t.priceEur, vatPercent: p.t.vatPercent, net: round2(q * p.t.priceEur) });
+      lines.push(makeLine({ kind: "usage", connectionKind: kind, description: label, unit: "m3" }, q, p.t.priceEur, p.t.vatPercent, p.t.priceIncludesVat));
     });
   };
   if (water) usageLines("water", waterM3, `Vesi${suffix}`);
@@ -259,6 +312,8 @@ export function calculateBill(input: BillingInput): BillingResult {
   for (const c of mode === "settlement" ? [] : [water, waste]) {
     if (!c) continue;
     const label = c.kind === "water" ? "Veden perusmaksu" : "Jätevesi perusmaksu";
+    // 'none': perusmaksu peritään kiinteistön toiselta liittymältä (Kärkinen).
+    if (c.feeClass === "none") continue;
     if (!c.feeClass) {
       issues.push(`${label}: liittymän perusmaksuluokka puuttuu.`);
       continue;
@@ -271,11 +326,13 @@ export function calculateBill(input: BillingInput): BillingResult {
         issues.push(`${label}: hinta puuttuu luokalle ${c.feeClass} (${first}).`);
         continue;
       }
-      const key = `${t.priceEur}|${t.vatPercent}`;
+      const key = `${t.priceEur}|${t.vatPercent}|${t.priceIncludesVat ? 1 : 0}`;
       groups.set(key, { t, n: (groups.get(key)?.n ?? 0) + 1 });
     }
     for (const g of groups.values()) {
-      lines.push({ kind: "basic_fee", connectionKind: c.kind, description: label, quantity: g.n, unit: "month", unitPrice: g.t.priceEur, vatPercent: g.t.vatPercent, net: round2(g.n * g.t.priceEur) });
+      // Kärkisessä perusmaksu nimetään laskulle pelkästään "Perusmaksu".
+      const name = g.t.name && g.t.priceIncludesVat ? g.t.name : label;
+      lines.push(makeLine({ kind: "basic_fee", connectionKind: c.kind, description: name, unit: "month" }, g.n, g.t.priceEur, g.t.vatPercent, g.t.priceIncludesVat));
     }
   }
 
@@ -300,15 +357,42 @@ export function calculateBill(input: BillingInput): BillingResult {
     for (const g of groups.values()) {
       // Vuosimaksu jaetaan kuukausille: määrä on kuukausien osuus vuodesta.
       const quantity = g.t.unit === "year" ? Math.round((g.n / 12) * 10000) / 10000 : g.n;
-      lines.push({
-        kind: "other_fee", connectionKind: g.t.connectionKind, description: g.t.name, quantity, unit: g.t.unit as "month" | "year",
-        unitPrice: g.t.priceEur, vatPercent: g.t.vatPercent, net: round2(quantity * g.t.priceEur),
-      });
+      lines.push(
+        makeLine({ kind: "other_fee", connectionKind: g.t.connectionKind, description: g.t.name, unit: g.t.unit as "month" | "year" }, quantity, g.t.priceEur, g.t.vatPercent, g.t.priceIncludesVat),
+      );
+    }
+  }
+
+  // --- Kiinteistön omat maksut ja lainaosuudet (ei tasauksessa) ---
+  if (mode !== "settlement") {
+    const months = billingMonths(start, end);
+    for (const ch of input.propertyCharges ?? []) {
+      const n =
+        ch.unit === "once"
+          ? ch.validFrom > start && ch.validFrom <= end ? 1 : 0
+          : months.filter((first) => first >= firstOfMonth(ch.validFrom) && (ch.validTo === null || first <= ch.validTo)).length;
+      if (n === 0) continue;
+      lines.push(makeLine({ kind: "other_fee", connectionKind: null, description: ch.name, unit: "month" }, n, ch.priceEur, ch.vatPercent, ch.priceIncludesVat));
+    }
+    for (const loan of input.loans ?? []) {
+      if (loan.monthlyAmortization <= 0 && loan.finalMonth === null) {
+        issues.push(`Lainaosuudelle (${loan.balance} €) ei ole kuukausierää, joten sitä ei laskutettu. Tarkista.`);
+        continue;
+      }
+      const { amortization, payoff, interest } = loanForPeriod(loan, months);
+      // Loppuerä omana rivinään, kuten vanhassa järjestelmässä: kuukausierä ja jäljellä oleva saldo.
+      for (const amount of [amortization, payoff].filter((x) => x > 0)) {
+        lines.push(makeLine({ kind: "other_fee", connectionKind: null, description: "Pääoman lyhennys", unit: "month" }, 1, amount, 0, false));
+      }
+      if (interest > 0) {
+        const rate = String(loan.interestPercent).replace(".", ",");
+        lines.push(makeLine({ kind: "other_fee", connectionKind: null, description: `Korko ${rate} %`, unit: "month" }, 1, interest, 0, false));
+      }
     }
   }
 
   const net = round2(lines.reduce((s, l) => s + l.net, 0));
-  const vat = round2(lines.reduce((s, l) => s + (l.net * l.vatPercent) / 100, 0));
+  const vat = round2(lines.reduce((s, l) => s + l.vat, 0));
   return { lines, usage, waterM3, wastewaterM3, net, vat, gross: round2(net + vat), issues };
 }
 
@@ -337,4 +421,42 @@ export function estimateAnnualM3(meters: BillingMeter[], asOf: string): number |
   const span = toDay(last) - toDay(first);
   if (span < 180) return null;
   return Math.round((consumption / span) * 365 * 1000) / 1000;
+}
+
+const firstOfMonth = (iso: string) => `${iso.slice(0, 7)}-01`;
+
+/**
+ * Lainaosuuden lyhennys ja korko jakson kuukausilta. Saldo lasketaan
+ * saldopäivästä eteenpäin kuukausi kerrallaan: kuukauden korko on 5 % / 12
+ * kuun alun saldosta senteille pyöristettynä, lyhennys on kuukausierä (tai
+ * erää pienempi jäljellä oleva saldo). Viimeisenä kuukautena jäljellä oleva
+ * saldo peritään kuukausierän lisäksi loppueränä.
+ */
+export function loanForPeriod(
+  loan: PropertyLoan,
+  months: string[],
+): { amortization: number; payoff: number; interest: number; balanceAfter: number } {
+  let balance = loan.balance;
+  let amortization = 0;
+  let payoff = 0;
+  let interest = 0;
+  const last = months.at(-1);
+  if (!last) return { amortization, payoff, interest, balanceAfter: balance };
+  // Ensimmäinen laskettava kuukausi on saldopäivää seuraava kuukausi.
+  const d = new Date(`${firstOfMonth(loan.balanceDate)}T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  for (let first = d.toISOString().slice(0, 10); first <= last && balance > 0; ) {
+    const monthInterest = round2((balance * loan.interestPercent) / 100 / 12);
+    const regular = Math.min(balance, loan.monthlyAmortization);
+    const rest = loan.finalMonth !== null && first >= loan.finalMonth ? round2(balance - regular) : 0;
+    if (months.includes(first)) {
+      amortization += regular;
+      payoff += rest;
+      interest += monthInterest;
+    }
+    balance = round2(balance - regular - rest);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    first = d.toISOString().slice(0, 10);
+  }
+  return { amortization: round2(amortization), payoff: round2(payoff), interest: round2(interest), balanceAfter: balance };
 }

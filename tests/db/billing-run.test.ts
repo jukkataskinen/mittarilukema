@@ -124,3 +124,44 @@ describe("laskutusajo", () => {
     expect(again.invoices).toBe(1);
   });
 });
+
+describe("arviolaskutusajo kiinteistön maksuin (Kärkinen)", () => {
+  it("laskuttaa liittymättömän kiinteistön maksut ja tallentaa rivin veron", async () => {
+    const lonely = await db.asService(async (tx) => {
+      await tx.query("update ml_organizations set estimate_basis = 'manual' where id = $1", [b.id]);
+      await tx.query("update ml_properties set estimated_annual_m3 = 24 where id = $1", [b.property]);
+      const [p] = await tx.query<{ id: string }>(
+        "insert into ml_properties (organization_id, street_address) values ($1, 'Rakentamaton tontti') returning id",
+        [b.id],
+      );
+      await tx.query("insert into ml_contracts (organization_id, property_id, customer_id, role, starts_on) values ($1, $2, $3, 'owner', '2026-01-01')", [
+        b.id, p.id, b.customer,
+      ]);
+      await tx.query(
+        `insert into ml_property_charges (organization_id, property_id, name, unit, price_eur, vat_percent, price_includes_vat, valid_from)
+         values ($1, $2, 'Liittymän lisämaksu', 'month', 72, 0, true, '2026-01-01'), ($1, $3, 'Lisäperusmaksu', 'month', 39, 25.5, true, '2026-01-01')`,
+        [b.id, p.id, b.property],
+      );
+      return p.id;
+    });
+    const res = await db.asUser(b.staff.sub, (tx) =>
+      createBillingRun(tx, { organizationId: b.id, userId: b.staff.id, periodStart: "2026-08-31", periodEnd: "2026-09-30", kind: "estimate" }),
+    );
+    expect(res.invoices).toBe(2);
+    const rows = await db.asUser(b.staff.sub, (tx) =>
+      tx.query<{ property_id: string; gross: string; source: string | null }>(
+        "select property_id, gross_eur::text as gross, estimate_source as source from ml_invoices where run_id = $1",
+        [res.runId],
+      ),
+    );
+    expect(rows.find((r) => r.property_id === lonely)?.gross).toBe("72.00");
+    // Käsin annettu arvio ensin: 24 m³/v → 2 m³ syyskuulle.
+    expect(rows.find((r) => r.property_id === b.property)?.source).toBe("manual");
+    const [line] = await db.asUser(b.staff.sub, (tx) =>
+      tx.query<{ net: string; vat: string; incl: boolean }>(
+        "select net_eur::text as net, vat_eur::text as vat, price_includes_vat as incl from ml_invoice_lines where description = 'Lisäperusmaksu'",
+      ),
+    );
+    expect(line).toEqual({ net: "31.08", vat: "7.92", incl: true });
+  });
+});

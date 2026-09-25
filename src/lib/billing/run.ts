@@ -57,7 +57,7 @@ export async function createBillingRun(
     [orgId, start, end, scopeName, areaId, input.note ?? null, input.userId, kind],
   );
 
-  const { properties, tariffs } = await loadOrgBillingData(tx, orgId);
+  const { properties, tariffs, estimateBasis } = await loadOrgBillingData(tx, orgId);
   const contracts = await tx.query<{ id: string; property_id: string; customer_id: string; starts_on: string; ends_on: string | null }>(
     `select id, property_id, customer_id, starts_on::text, ends_on::text from ml_contracts
       where organization_id = $1 and billed and starts_on <= $3 and (ends_on is null or ends_on > $2)`,
@@ -85,17 +85,23 @@ export async function createBillingRun(
     estimate_annual_m3?: number | null; estimate_source?: "history" | "manual" | null;
   };
   const invoices: InvoiceRow[] = [];
-  const lines: { key: string; line_no: number; kind: string; connection_kind: string | null; description: string; quantity: number; unit: string; unit_price: number; vat_percent: number; net_eur: number }[] = [];
+  const lines: {
+    key: string; line_no: number; kind: string; connection_kind: string | null; description: string; quantity: number; unit: string;
+    unit_price: number; vat_percent: number; net_eur: number; vat_eur: number; price_includes_vat: boolean;
+  }[] = [];
 
   for (const p of properties.values()) {
     if (scopeName === "no_area" && p.areaId !== null) continue;
     if (scopeName === "area" && p.areaId !== areaId) continue;
     if (scopeName === "except_area" && p.areaId === areaId) continue;
     const activeConn = p.connections.some((c) => c.connectedOn <= end && (c.disconnectedOn === null || c.disconnectedOn > start));
-    if (!activeConn) continue;
+    // Kiinteistö ilman liittymää laskutetaan, jos sillä on omia maksuja tai lainaosuus (Kärkinen: liittymättömän lainaosuus).
+    if (!activeConn && (kind === "settlement" || (p.charges.length === 0 && p.loans.length === 0))) continue;
     const cs = [...(byProperty.get(p.propertyId) ?? [])].sort((x, y) => x.starts_on.localeCompare(y.starts_on));
     // Arviolasku: vuosikulutusarvio edellisen vuoden lukemista, muuten käsin annettu arvio.
-    const history = kind === "estimate" ? estimateAnnualM3(p.meters, start) : null;
+    // Organisaatio voi valita käsin annetun arvion ensisijaiseksi (Kärkinen päättää kuukausiarviot itse).
+    const manualFirst = estimateBasis === "manual" && p.estimatedAnnualM3 !== null;
+    const history = kind === "estimate" && !manualFirst ? estimateAnnualM3(p.meters, start) : null;
     const annual = kind === "estimate" ? (history ?? p.estimatedAnnualM3) : null;
     const estimateSource = history !== null ? "history" : annual !== null ? "manual" : null;
     const months = billingMonths(start, end).length;
@@ -104,6 +110,7 @@ export async function createBillingRun(
       calculateBill({
         periodStart: s0, periodEnd: e0, areaId: p.areaId, connections: p.connections, meters: p.meters, tariffs, readingWindowDays: windowDays,
         mode: kind, estimateM3: annual !== null ? Math.round(((annual * months) / 12) * 1000) / 1000 : 0, billedEstimateM3: billedEstimate,
+        propertyCharges: p.charges, loans: p.loans,
       });
     const push = (row: Omit<InvoiceRow, "key" | "info">, res: ReturnType<typeof calculateBill>, partial: boolean) => {
       const key = `${row.property_id}|${row.period_end}`;
@@ -124,6 +131,7 @@ export async function createBillingRun(
         lines.push({
           key, line_no: i + 1, kind: l.kind, connection_kind: l.connectionKind, description: l.description,
           quantity: l.quantity, unit: l.unit, unit_price: l.unitPrice, vat_percent: l.vatPercent, net_eur: l.net,
+          vat_eur: Math.round(l.vat * 100) / 100, price_includes_vat: l.priceIncludesVat,
         }),
       );
     };
@@ -155,7 +163,7 @@ export async function createBillingRun(
     const payer = cs.find((c) => c.starts_on <= end && (c.ends_on === null || c.ends_on >= end)) ?? null;
     const issues = [...res.issues].filter((x) => kind !== "estimate" || !x.includes("mittari"));
     if (!payer) issues.push("Laskutettava sopimus puuttuu jakson lopussa.");
-    if (kind === "estimate" && annual === null) issues.push("Vuosikulutusarvio puuttuu: lukemia alle puolelta vuodelta eikä kiinteistölle ole annettu arviota.");
+    if (kind === "estimate" && annual === null && activeConn) issues.push("Vuosikulutusarvio puuttuu: lukemia alle puolelta vuodelta eikä kiinteistölle ole annettu arviota.");
     if (kind === "settlement" && billedEstimate === 0) issues.push("Tasausjaksolta ei löytynyt hyväksyttyjä arviolaskuja.");
     if (new Set(cs.map((c) => c.customer_id)).size > 1) {
       issues.push("Maksaja vaihtunut jaksolla, eikä vaihtopäivältä ole lukemaa: laskua ei voitu jakaa. Kirjaa vaihtopäivän lukema ja laske uudelleen.");
@@ -181,10 +189,12 @@ export async function createBillingRun(
     const idOf = new Map(inserted.map((r) => [`${r.property_id}|${r.period_end}`, r.id]));
     if (lines.length) {
       await tx.query(
-        `insert into ml_invoice_lines (organization_id, invoice_id, line_no, kind, connection_kind, description, quantity, unit, unit_price, vat_percent, net_eur)
-         select $1, x.invoice_id, x.line_no, x.kind, x.connection_kind, x.description, x.quantity, x.unit, x.unit_price, x.vat_percent, x.net_eur
+        `insert into ml_invoice_lines (organization_id, invoice_id, line_no, kind, connection_kind, description, quantity, unit, unit_price, vat_percent, net_eur,
+                                       vat_eur, price_includes_vat)
+         select $1, x.invoice_id, x.line_no, x.kind, x.connection_kind, x.description, x.quantity, x.unit, x.unit_price, x.vat_percent, x.net_eur,
+                x.vat_eur, x.price_includes_vat
            from json_to_recordset($2::json) as x(invoice_id uuid, line_no smallint, kind text, connection_kind text, description text,
-                quantity numeric, unit text, unit_price numeric, vat_percent numeric, net_eur numeric)`,
+                quantity numeric, unit text, unit_price numeric, vat_percent numeric, net_eur numeric, vat_eur numeric, price_includes_vat boolean)`,
         [orgId, JSON.stringify(lines.map((l) => ({ ...l, invoice_id: idOf.get(l.key) })))],
       );
     }

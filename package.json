@@ -20,7 +20,9 @@
     "joutsa:hinnasto": "tsx --env-file-if-exists=.env.local scripts/joutsa-hinnasto.mts",
     "joutsa:alueet": "tsx --env-file-if-exists=.env.local scripts/joutsa-alueet.mts",
     "vertaa:laskut": "tsx --env-file-if-exists=.env.local scripts/compare-fennoa.mts",
-    "kayttaja:lisaa": "tsx --env-file-if-exists=.env.local scripts/add-user.mts"
+    "kayttaja:lisaa": "tsx --env-file-if-exists=.env.local scripts/add-user.mts",
+    "karkinen:tuo": "tsx --env-file-if-exists=.env.local scripts/import-karkinen.mts",
+    "karkinen:vertaa": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen.mts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.11.0",

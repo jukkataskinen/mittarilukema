@@ -49,8 +49,9 @@ src/lib/readings/         lukeman kirjaus, tarkistukset, linkit, lukulista
 src/lib/billing/          laskentamoottori (calculate), laskutusajo (run), lisätieto (info)
 src/lib/sms/              tekstiviestien tulkinta ja vastaanotto, lähetys testitilassa
 src/lib/import/           Fennoa-aineiston tuonnin logiikka
+scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0013 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0014 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu
@@ -68,6 +69,9 @@ npm run tuo:laskut -- --org "Joutsan Vesihuolto Oy" [--kuiva] [--tuotanto]
 npm run joutsa:hinnasto [-- --tuotanto]      Joutsan hinnasto ja perusmaksuluokat
 npm run joutsa:alueet [-- --tuotanto]        alueet Unes-tunnuksesta
 npm run vertaa:laskut [-- --tuotanto]        Fennoan laskut uudelleen laskettuina
+python scripts/karkinen/parse.py <kansio>    Kärkisen ennakkolista, käyttöpaikat ja lainat → data/private/karkinen
+npm run karkinen:tuo -- [--luo] [--korvaa] [--kuiva] [--tuotanto]
+npm run karkinen:vertaa [-- --tallenna] [--tuotanto]   arviolaskut ennakkolistaa vasten
 npm run kayttaja:lisaa -- --email x --org "Nimi" --rooli owner [--luo-org actual|estimate] [--tuotanto]
 npm run lint && npm run typecheck && npm run test
 ```

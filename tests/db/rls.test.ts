@@ -20,6 +20,8 @@ const TABLES = [
   "ml_reading_rounds",
   "ml_readings",
   "ml_tariffs",
+  "ml_property_charges",
+  "ml_property_loans",
 ];
 // Laskutusajon taulut testataan tiedostossa billing-run.test.ts.
 
@@ -44,6 +46,14 @@ beforeAll(async () => {
       await tx.query(
         "insert into ml_tariffs (organization_id, charge_type, connection_kind, name, unit, price_eur, valid_from) values ($1, 'usage_fee', 'water', 'Käyttömaksu, vesi', 'm3', 1.95, '2026-01-01')",
         [org.id],
+      );
+      await tx.query(
+        "insert into ml_property_charges (organization_id, property_id, name, unit, price_eur, valid_from) values ($1, $2, 'Lisäperusmaksu', 'month', 39, '2026-01-01')",
+        [org.id, org.property],
+      );
+      await tx.query(
+        "insert into ml_property_loans (organization_id, property_id, balance_eur, balance_date, monthly_amortization_eur) values ($1, $2, 1000, '2026-08-31', 50)",
+        [org.id, org.property],
       );
     }
   });
@@ -76,6 +86,17 @@ describe("organisaatioiden eristys", () => {
         tx.query("insert into ml_readings (organization_id, meter_id, read_on, reading, source) values ($1, $2, '2026-03-01', 160, 'staff')", [
           a.id,
           b.meter,
+        ]),
+      ),
+    ).rejects.toThrow(/toisen organisaation/);
+  });
+
+  it("kiinteistön maksu ei voi viitata toisen organisaation kiinteistöön", async () => {
+    await expect(
+      db.asUser(a.staff.sub, (tx) =>
+        tx.query("insert into ml_property_charges (organization_id, property_id, name, unit, price_eur, valid_from) values ($1, $2, 'X', 'once', 1, '2026-01-01')", [
+          a.id,
+          b.property,
         ]),
       ),
     ).rejects.toThrow(/toisen organisaation/);
