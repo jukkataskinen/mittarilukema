@@ -14,7 +14,7 @@ import { normalizePhone } from "../src/lib/validation/phone.ts";
  * laskutettava sopimus. Jos sama numero on listalla kahdesti eri maksajalla,
  * jälkimmäisen asiakasnumero on muotoa "39-2". Maksulajit:
  *   30 Perusmaksu            hinnasto, jätevesiliittymän perusmaksuluokka okt
- *   31 Perusmaksu 2          kiinteistön maksu "Lisäperusmaksu" (DECISIONS 25.9.2026)
+ *   31 Perusmaksu 2          kiinteistön maksu, etäluettavien mittarien hankinta (DECISIONS 25.9.2026)
  *   34/35 Vesi/Jätevesi arvio liittymät ja kuukausiarvio (estimated_annual_m3 = 12 × kk)
  *   40 Liittymän lisämaksu   kiinteistön maksu, alv 0
  *   50 Jäsenmaksu            kertamaksu listan kuukaudelle, alv 0
@@ -148,7 +148,7 @@ try {
       // Kiinteistön omat maksut.
       const charges: { name: string; unit: "month" | "once"; price: number; vat: number; from: string; code: string }[] = [];
       for (const [i, r] of codes("30").entries()) if (i > 0) charges.push({ name: "Perusmaksu", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: START, code: "30" });
-      for (const r of codes("31")) charges.push({ name: "Lisäperusmaksu", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: START, code: "31" });
+      for (const r of codes("31")) charges.push({ name: "Perusmaksu 2 (etäluettavat mittarit)", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: START, code: "31" });
       for (const r of codes("40")) charges.push({ name: "Liittymän lisämaksu", unit: "month", price: r.hinta ?? 0, vat: 0, from: START, code: "40" });
       for (const r of codes("50")) charges.push({ name: "Jäsenmaksu", unit: "once", price: r.hinta ?? 0, vat: 0, from: periodMonth, code: "50" });
       for (const c of charges.filter((x) => x.price > 0)) {

@@ -68,7 +68,7 @@
 
 **Kärkinen ennakkolistasta (0014).** Kärkisen rekisteri ja hinnasto tuodaan syyskuun 2026 ennakkotavoitelistasta, joka kertoo, mitä osakkailta oikeasti veloitetaan kuukausittain. Jokainen listan huoneisto on laskutuskohde, ja asiakasnumero on huoneiston numero, josta vanha viitenumero johdetaan. Käyttöpaikat-taulukosta tulevat kulutuspisteen numero ja yhteystiedot (139/160 yhdistetty osoitteella tai nimellä). Laskutusajon arviolaskut täsmäävät listaan kaikilla 160 huoneistolla (29 146,51 €).
 
-**Perusmaksu 2 on lisäperusmaksu (Jukka 25.9.2026, oletus).** Se veloitetaan vain 142 huoneistolta, joten se on kiinteistön oma maksu (ml_property_charges) eikä hinnaston rivi. Samaan tauluun tulevat liittymän lisämaksu (72 €/kk, alv 0), toinen perusmaksu samalla huoneistolla ja jäsenmaksu kertamaksuna.
+**Perusmaksu 2 on etäluettavien mittarien hankintaan liittyvä maksu (Jukka 25.9.2026).** Ensin oletettiin lisäperusmaksuksi; nimi korjattu laskulle muotoon "Perusmaksu 2 (etäluettavat mittarit)". Se veloitetaan vain 142 huoneistolta, joten se on kiinteistön oma maksu (ml_property_charges) eikä hinnaston rivi. Samaan tauluun tulevat liittymän lisämaksu (72 €/kk, alv 0), toinen perusmaksu samalla huoneistolla ja jäsenmaksu kertamaksuna.
 
 **Kärkisen hinnat ovat verollisia.** Rivin summa on määrä × verollinen hinta, ja veroton osuus lasketaan siitä taaksepäin senteille (vanhan järjestelmän tapa). Näin laskun loppusumma täsmää sentilleen. Joutsan verottomien hintojen laskenta ei muutu. Pyöristys on puolikkaat poispäin nollasta; aiempi pyöristys vei 1,285:n alaspäin, ja korjaus nosti myös Joutsan täsmäävät laskut 853:sta 854:ään.
 
