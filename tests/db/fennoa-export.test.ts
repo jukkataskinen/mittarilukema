@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/db/types";
 import { approveBillingRun, createBillingRun, deleteDraftRun } from "@/lib/billing/run";
 import { exportRunToFennoa } from "@/lib/fennoa/export";
-import { mockFennoa, type FennoaClient } from "@/lib/fennoa";
+import { FennoaError, mockFennoa, type FennoaClient } from "@/lib/fennoa";
 import { freshDb, seedOrg, type OrgFixture } from "../helpers/db";
 
 let db: Database;
@@ -116,5 +116,46 @@ describe("vienti Fennoaan", () => {
   it("toinen organisaatio ei näe vientejä", async () => {
     const rows = await db.asUser(b.staff.sub, (tx) => tx.query("select 1 from ml_fennoa_exports"));
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("epäonnistuneet laskut", () => {
+  it("eivät tuki erää: yrittämättömät viedään ensin", async () => {
+    const run = await db.asUser(b.staff.sub, async (tx) => {
+      await tx.query("update ml_connections set fee_class = 'okt' where organization_id = $1", [b.id]);
+      await tx.query("insert into ml_tariffs (organization_id, charge_type, connection_kind, fee_class, name, unit, price_eur, valid_from) values ($1, 'basic_fee', 'water', 'okt', 'Perusmaksu', 'month', 5, '2024-01-01')", [b.id]);
+      // Kaksi maksajaa: ensimmäinen epäonnistuu Fennoassa, toinen onnistuu.
+      const [p] = await tx.query<{ id: string }>("insert into ml_properties (organization_id, street_address) values ($1, 'Toinen tie 2') returning id", [b.id]);
+      await tx.query("insert into ml_connections (organization_id, property_id, kind, connected_on, fee_class) values ($1, $2, 'water', '2010-01-01', 'okt')", [b.id, p.id]);
+      const [c] = await tx.query<{ id: string }>(
+        "insert into ml_customers (organization_id, name, email, invoice_channel, billing_street, billing_postal_code, billing_city) values ($1, 'Onnistuja', 'ok@example.fi', 'email', 'Tie 2', '41800', 'Korpilahti') returning id",
+        [b.id],
+      );
+      await tx.query("insert into ml_contracts (organization_id, property_id, customer_id, role, starts_on) values ($1, $2, $3, 'owner', '2020-01-01')", [b.id, p.id, c.id]);
+      await tx.query(
+        "update ml_customers set email = 'fail@example.fi', invoice_channel = 'email', billing_street = 'Tie 1', billing_postal_code = '41800', billing_city = 'Korpilahti' where id = $1",
+        [b.customer],
+      );
+      return createBillingRun(tx, { organizationId: b.id, userId: b.staff.id, periodStart: "2026-08-31", periodEnd: "2026-09-30", kind: "estimate" });
+    });
+    const inner = mockFennoa();
+    // Ensimmäisenä yritetty lasku epäonnistuu aina (kuten puuttuva e-laskusopimus).
+    let failing: string | null = null;
+    const flaky: FennoaClient = {
+      environment: "mock",
+      addInvoice: async (form) => {
+        failing ??= form.einvoice_address;
+        if (form.einvoice_address === failing) throw new FennoaError("Fennoa: ei sopimusta", 422);
+        return inner.addInvoice(form);
+      },
+      getInvoice: (id) => inner.getInvoice(id),
+    };
+    const input = { organizationId: b.id, userId: b.staff.id, runId: run.runId, ...dates, batch: 1 };
+    const first = await exportRunToFennoa(runner(b.staff.sub), flaky, input);
+    const second = await exportRunToFennoa(runner(b.staff.sub), flaky, input);
+    expect(first).toMatchObject({ failed: 1, exported: 0 });
+    // Toinen erä ottaa yrittämättömän laskun eikä samaa epäonnistunutta.
+    expect(second).toMatchObject({ exported: 1, failed: 0 });
+    expect(inner.invoices.size).toBe(1);
   });
 });

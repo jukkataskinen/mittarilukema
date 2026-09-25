@@ -65,7 +65,9 @@ export async function exportRunToFennoa(
         where i.run_id = $1 and i.organization_id = $2 and i.status <> 'excluded'
           and not exists (select 1 from ml_fennoa_exports e where e.invoice_id = i.id and e.environment = $3
                           and e.status in ('pending', 'exported', 'mismatch'))
-        order by i.id`,
+        -- Ensin laskut, joita ei ole vielä yritetty; aiemmin epäonnistuneet vasta niiden jälkeen,
+        -- jottei sama epäonnistuva erä (esim. puuttuva e-laskutussopimus) pysäytä vientiä.
+        order by exists (select 1 from ml_fennoa_exports f where f.invoice_id = i.id and f.environment = $3 and f.status = 'failed'), i.id`,
       [runId, orgId, env],
     );
     const pick = invoices;
