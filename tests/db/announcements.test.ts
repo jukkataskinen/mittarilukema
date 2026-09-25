@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/db/types";
-import { findRecipients, lockAnnouncement, markLettersPrinted, sendEmailBatch } from "@/lib/announcements";
+import { cancelLetters, confirmLetters, findRecipients, lockAnnouncement, markLettersPrinted, sendEmailBatch, uploadLetters } from "@/lib/announcements";
+import { mockLetters } from "@/lib/letters";
 import { mockEmail } from "@/lib/email";
 import { freshDb, seedOrg, type OrgFixture } from "../helpers/db";
 
@@ -79,5 +80,33 @@ describe("tiedotteet", () => {
     await expect(
       db.asUser(a.reader.sub, (tx) => tx.query("insert into ml_announcements (organization_id, title, body) values ($1, 'x', 'y')", [a.id])),
     ).rejects.toThrow();
+  });
+});
+
+describe("kirjeet postituspalvelun kautta", () => {
+  it("lataus vahvistamattomana, peruutus palauttaa kirjeet ja vahvistus merkitsee ne postitetuiksi", async () => {
+    await db.asService((tx) => tx.query("update ml_organizations set postal_street = 'Pumppaamontie 2', postal_code = '41800', postal_city = 'Korpilahti' where id = $1", [a.id]));
+    const id = await db.asUser(a.staff.sub, async (tx) => {
+      const [row] = await tx.query<{ id: string }>("insert into ml_announcements (organization_id, title, body, delivery) values ($1, 'Kirjeet', 'Teksti.', 'letter_all') returning id", [a.id]);
+      await lockAnnouncement(tx, { organizationId: a.id, userId: a.staff.id, announcementId: row.id, today });
+      return row.id;
+    });
+    const letters = mockLetters();
+    const input = { organizationId: a.id, userId: a.staff.id, announcementId: id };
+    const up = await uploadLetters(runner(a.staff.sub), letters, { ...input, postClass: 2, date: "25.9.2026" });
+    expect(up.letters).toBe(2);
+    expect([...letters.jobs.values()][0]).toMatchObject({ status: "NE", recipients: 2, pages: 1 });
+    await expect(uploadLetters(runner(a.staff.sub), letters, { ...input, postClass: 2, date: "25.9.2026" })).rejects.toThrow(/odottavat jo vahvistusta/);
+
+    await cancelLetters(runner(a.staff.sub), letters, input);
+    const pending = await db.asUser(a.staff.sub, (tx) => tx.query("select 1 from ml_announcement_recipients where announcement_id = $1 and channel = 'letter' and status = 'pending'", [id]));
+    expect(pending).toHaveLength(2);
+
+    await uploadLetters(runner(a.staff.sub), letters, { ...input, postClass: 1, date: "25.9.2026" });
+    expect(await confirmLetters(runner(a.staff.sub), letters, input)).toBe(2);
+    const [row] = await db.asUser(a.staff.sub, (tx) =>
+      tx.query<{ letter_job_status: string; letter_post_class: number }>("select letter_job_status, letter_post_class from ml_announcements where id = $1", [id]),
+    );
+    expect(row).toEqual({ letter_job_status: "CO", letter_post_class: 1 });
   });
 });

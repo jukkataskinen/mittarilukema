@@ -1,15 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, LinkButton, Notice, PageHeader, Panel, SectionTitle, Stat, Table, Td, Th } from "@/components/ui";
+import { Badge, Button, LinkButton, Notice, PageHeader, Panel, SectionTitle, Select, Stat, Table, Td, Th } from "@/components/ui";
 import { FormError } from "@/components/FormError";
 import { requireRole } from "@/lib/auth/current-user";
 import { formatDateTime, isoDateHelsinki } from "@/lib/format";
 import { emailMode } from "@/lib/email";
+import { letterMode } from "@/lib/letters";
 import {
   ANNOUNCEMENT_STATUS, AUDIENCE_LABEL, CHANNEL_LABEL, DELIVERY_LABEL, findRecipients, RECIPIENT_STATUS,
   type Audience, type Channel, type Delivery,
 } from "@/lib/announcements";
-import { deleteAnnouncementAction, lockAnnouncementAction, markLettersAction, sendEmailsAction, sendTestEmailAction } from "../actions";
+import {
+  cancelLettersAction, confirmLettersAction, deleteAnnouncementAction, lockAnnouncementAction, markLettersAction, sendEmailsAction, sendTestEmailAction,
+  uploadLettersAction,
+} from "../actions";
+
+const JOB_STATUS: Record<string, string> = {
+  NE: "odottaa vahvistusta", CO: "vahvistettu, lähtee seuraavana arkipäivänä", PR: "käsittelyssä", SE: "lähetetty", CA: "peruttu",
+};
 
 export const metadata = { title: "Tiedote" };
 // Sähköpostit lähtevät erissä; erä kestää noin 25 sekuntia.
@@ -24,9 +32,11 @@ export default async function AnnouncementPage({ params, searchParams }: { param
     const [a] = await tx.query<{
       id: string; title: string; body: string; audience: Audience; area_id: string | null; area_name: string | null; delivery: Delivery;
       status: string; locked_at: string | null; locked_by_name: string | null; contact_email: string | null; postal_street: string | null;
+      letter_job_id: string | null; letter_job_status: string | null; letter_job_price: string | null; letter_post_class: number | null; letter_job_mode: string | null;
     }>(
       `select a.id, a.title, a.body, a.audience, a.area_id, ar.name as area_name, a.delivery, a.status, a.locked_at,
-              coalesce(u.full_name, u.email) as locked_by_name, o.contact_email, o.postal_street
+              coalesce(u.full_name, u.email) as locked_by_name, o.contact_email, o.postal_street,
+              a.letter_job_id, a.letter_job_status, a.letter_job_price::text, a.letter_post_class, a.letter_job_mode
          from ml_announcements a join ml_organizations o on o.id = a.organization_id
          left join ml_areas ar on ar.id = a.area_id left join ml_users u on u.id = a.locked_by
         where a.id = $1 and a.organization_id = $2`,
@@ -48,6 +58,8 @@ export default async function AnnouncementPage({ params, searchParams }: { param
   const draft = a.status === "draft";
   const count = (ch: Channel, st?: string[]) => recipients.filter((r) => r.channel === ch && (!st || st.includes(r.status))).length;
   const mode = emailMode();
+  const lMode = letterMode();
+  const jobWaiting = a.letter_job_status === "NE";
   const unreachable = recipients.filter((r) => r.channel === "none");
   const lettersPending = count("letter", ["pending"]);
   const emailsLeft = count("email", ["pending", "failed"]);
@@ -73,6 +85,13 @@ export default async function AnnouncementPage({ params, searchParams }: { param
       {sp.koeviesti ? (
         <div className="mb-5">
           <Notice tone="ok" title={mode === "mock" ? "Koeviesti muodostettu (testitila, ei lähetetty)" : "Koeviesti lähetetty omaan sähköpostiisi"} />
+        </div>
+      ) : null}
+      {sp.kirjeet ? (
+        <div className="mb-5">
+          <Notice tone="info" title={`${sp.kirjeet} kirjettä ladattu ${a.letter_job_mode === "mock" ? "testitilassa (ei lähetetty Postitaan)" : "Postitaan"}.`}>
+            Tarkista vedos Postitan verkkopalvelussa ja vahvista postitus alta. Vahvistetut kirjeet lähtevät seuraavana arkipäivänä.
+          </Notice>
         </div>
       ) : null}
       {sp.postitettu ? (
@@ -156,23 +175,63 @@ export default async function AnnouncementPage({ params, searchParams }: { param
                 <div>
                   <p className="text-sm font-semibold">Kirjeet</p>
                   <p className="mt-1 text-sm text-ink/70">
-                    Postitettu {count("letter", ["printed"])} / {count("letter")}. Tulostamatta {lettersPending}.
+                    Postitettu {count("letter", ["printed"])} / {count("letter")}. Lähettämättä {lettersPending}.
                   </p>
-                  {count("letter") ? (
+                  {a.letter_job_id ? (
+                    <p className="mt-1 text-sm text-ink/70">
+                      Postitan työ {a.letter_job_mode === "mock" ? "(testitila)" : a.letter_job_id}: {JOB_STATUS[a.letter_job_status ?? ""] ?? a.letter_job_status}
+                      {a.letter_post_class ? `, ${a.letter_post_class}. luokka` : ""}
+                      {a.letter_job_price ? `, hinta ${a.letter_job_price.replace(".", ",")} €` : ""}.
+                    </p>
+                  ) : null}
+                  {jobWaiting ? (
                     <div className="mt-3 flex flex-wrap gap-3">
-                      <a href={`/api/tiedotteet/${id}/kirjeet?koe=1`} className="inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold hover:bg-cloud">
-                        Koetuloste
-                      </a>
-                      <a href={`/api/tiedotteet/${id}/kirjeet${lettersPending ? "" : "?kaikki=1"}`} className="inline-flex min-h-10 items-center rounded-xl bg-sky px-4 text-sm font-semibold text-white">
-                        {lettersPending ? `Lataa ${lettersPending} kirjettä (PDF)` : "Lataa kirjeet uudelleen"}
-                      </a>
-                      {lettersPending ? (
-                        <form action={markLettersAction}>
+                      <form action={confirmLettersAction}>
+                        <input type="hidden" name="announcementId" value={id} />
+                        <Button>Vahvista postitus ({count("letter", ["sending"])} kirjettä)</Button>
+                      </form>
+                      <form action={cancelLettersAction}>
+                        <input type="hidden" name="announcementId" value={id} />
+                        <Button variant="secondary">Peru</Button>
+                      </form>
+                    </div>
+                  ) : lettersPending ? (
+                    <>
+                      {lMode ? (
+                        <form action={uploadLettersAction} className="mt-3 flex flex-wrap items-end gap-3">
                           <input type="hidden" name="announcementId" value={id} />
-                          <Button variant="secondary">Merkitse postitetuiksi</Button>
+                          <label className="text-sm">
+                            <span className="sr-only">Postiluokka</span>
+                            <Select name="postClass" defaultValue="2" aria-label="Postiluokka">
+                              <option value="2">2. luokka (Economy)</option>
+                              <option value="1">1. luokka (Priority)</option>
+                            </Select>
+                          </label>
+                          <Button>
+                            Lähetä {lettersPending} kirjettä Postitan kautta{lMode === "mock" ? " (testitila)" : ""}
+                          </Button>
                         </form>
                       ) : null}
-                    </div>
+                      <details className="mt-3 text-sm">
+                        <summary className="cursor-pointer text-ink/65">Tulosta ja postita itse</summary>
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          <a href={`/api/tiedotteet/${id}/kirjeet?koe=1`} className="inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold hover:bg-cloud">
+                            Koetuloste
+                          </a>
+                          <a href={`/api/tiedotteet/${id}/kirjeet`} className="inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold hover:bg-cloud">
+                            Lataa {lettersPending} kirjettä (PDF)
+                          </a>
+                          <form action={markLettersAction}>
+                            <input type="hidden" name="announcementId" value={id} />
+                            <Button variant="secondary">Merkitse postitetuiksi</Button>
+                          </form>
+                        </div>
+                      </details>
+                    </>
+                  ) : count("letter") ? (
+                    <a href={`/api/tiedotteet/${id}/kirjeet?kaikki=1`} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold hover:bg-cloud">
+                      Lataa kirjeet (PDF)
+                    </a>
                   ) : null}
                 </div>
               </div>

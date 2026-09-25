@@ -43,7 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     : data.letters;
   if (!letters.length) return new NextResponse("Ei tulostettavia kirjeitä", { status: 404 });
 
-  const pdf = await buildLettersPdf(data.a, data.a, letters, { date: formatDate(isoDateHelsinki()), calibration });
+  const { pdf } = await buildLettersPdf(data.a, data.a, letters, { date: formatDate(isoDateHelsinki()), calibration });
   const name = calibration ? "koetuloste" : "tiedote-kirjeet";
   return new NextResponse(Buffer.from(pdf), {
     headers: {

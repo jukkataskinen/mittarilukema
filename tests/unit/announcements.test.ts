@@ -38,18 +38,18 @@ describe("sähköposti", () => {
 
 describe("ikkunakirjeet", () => {
   it("yksi sivu kirjettä kohden, pitkä teksti jatkuu seuraavalle sivulle", async () => {
-    const pdf = await buildLettersPdf(
+    const { pdf, pagesPerLetter } = await buildLettersPdf(
       org,
       { title: "Tiedote", body: Array.from({ length: 80 }, (_, i) => `Kappale ${i + 1}: vesimaksut ja lukemat.`).join("\n\n") },
       [{ name: "A", address_lines: ["A", "Tie 1", "41800 KORPILAHTI"] }, { name: "B", address_lines: ["B", "Tie 2", "41800 KORPILAHTI"] }],
       { date: "25.9.2026" },
     );
     const doc = await PDFDocument.load(pdf);
-    expect(doc.getPageCount()).toBeGreaterThanOrEqual(4);
-    expect(doc.getPageCount() % 2).toBe(0);
+    expect(pagesPerLetter).toBeGreaterThanOrEqual(2);
+    expect(doc.getPageCount()).toBe(pagesPerLetter * 2);
   });
   it("fontista puuttuva merkki ei kaada tulostusta", async () => {
-    const pdf = await buildLettersPdf(org, { title: "Łódź → Kärkinen", body: "Ääkköset ÅÄÖ åäö ja € toimivat, ✓ ei." }, [{ name: "Ł", address_lines: ["Łukasz", "Tie 1", "41800 KORPILAHTI"] }], {
+    const { pdf } = await buildLettersPdf(org, { title: "Łódź → Kärkinen", body: "Ääkköset ÅÄÖ åäö ja € toimivat, ✓ ei." }, [{ name: "Ł", address_lines: ["Łukasz", "Tie 1", "41800 KORPILAHTI"] }], {
       date: "25.9.2026",
       calibration: true,
     });

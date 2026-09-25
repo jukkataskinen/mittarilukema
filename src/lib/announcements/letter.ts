@@ -2,12 +2,15 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf
 import { signature, type OrgContact } from "./index";
 
 /**
- * Tiedote ikkunakirjeeksi (A4). Vastaanottajan osoite on SFS 2487:n
- * osoitekentässä: 20 mm vasemmasta reunasta ja rivin 8 kohdalla (noin 45 mm
- * ylhäältä), joten se näkyy sekä kerran taitetun (C5) että kolmeen osaan
- * taitetun (E65) arkin ikkunakuoren ikkunasta. Koetulosteessa ikkunan
- * ohjeellinen paikka piirretään katkoviivalla, jotta asettelun voi
- * tarkistaa oikeaa kirjekuorta vasten ennen koko erän tulostusta.
+ * Tiedote ikkunakirjeeksi (A4, isoikkunainen C5-kuori). Asettelu Postitan
+ * kirjepohjaohjeen mukaan (postita.fi/static/postita/postitafi-kirjepohjaohje.pdf),
+ * joka on myös SFS 2487:n osoitekenttä:
+ *   lähettäjä        10–30 mm ylhäältä, 20–85 mm vasemmalta
+ *   maksumerkintä    30–40 mm ylhäältä, jätetään tyhjäksi (Postita tulostaa Postin merkinnän)
+ *   vastaanottaja    40–60 mm ylhäältä, 20–85 mm vasemmalta
+ *   turva-alue       0–85 mm ylhäältä ja 0–110 mm vasemmalta: ei muuta sisältöä
+ * Liian pitkä rivi pienennetään mahtumaan, jottei se näy ikkunasta väärin.
+ * Koetulosteessa alueet piirretään katkoviivalla.
  */
 
 const MM = 72 / 25.4;
@@ -18,6 +21,17 @@ const RIGHT = 190 * MM;
 const BOTTOM = 22 * MM;
 // Pdf-lib mittaa y-koordinaatin alareunasta.
 const fromTop = (mm: number) => PAGE_H - mm * MM;
+// Osoitekenttien leveys (20–85 mm).
+const FIELD_W = 65 * MM;
+
+/** Rivi mahtumaan kenttään: fonttia pienennetään enintään 7 pisteeseen, sitten rivi lyhennetään. */
+function fit(font: PDFFont, text: string, size: number, width = FIELD_W): { text: string; size: number } {
+  let s = size;
+  while (s > 7 && font.widthOfTextAtSize(text, s) > width) s -= 0.5;
+  let t = text;
+  while (t.length > 1 && font.widthOfTextAtSize(t, s) > width) t = t.slice(0, -1);
+  return { text: t, size: s };
+}
 
 export interface Letter {
   name: string;
@@ -65,7 +79,7 @@ export async function buildLettersPdf(
   announcement: { title: string; body: string },
   letters: Letter[],
   opts: { date: string; calibration?: boolean },
-): Promise<Uint8Array> {
+): Promise<{ pdf: Uint8Array; pagesPerLetter: number }> {
   const doc = await PDFDocument.create();
   doc.setTitle(announcement.title);
   doc.setCreator("Mittarilukema");
@@ -74,6 +88,7 @@ export async function buildLettersPdf(
   const ink = rgb(0.12, 0.16, 0.22);
   const muted = rgb(0.35, 0.39, 0.45);
   const sender = signature(org);
+  const pageCounts = new Set<number>();
 
   for (const letter of letters) {
     const pages: PDFPage[] = [];
@@ -84,27 +99,33 @@ export async function buildLettersPdf(
     };
     let page = newPage();
 
-    // Lähettäjä ja päiväys (ikkunan yläpuolella, eivät näy kuoresta).
-    page.drawText(safe(bold, org.name), { x: LEFT, y: fromTop(15), size: 10, font: bold, color: ink });
-    sender.slice(1).forEach((l, i) => page.drawText(safe(regular, l), { x: LEFT, y: fromTop(20 + i * 4.5), size: 8.5, font: regular, color: muted }));
+    // Lähettäjä 10–30 mm (näkyy ikkunasta palautusosoitteena). Päiväys turva-alueen oikealla puolella.
+    const senderLines = [{ font: bold, text: org.name, size: 9.5 }, ...sender.slice(1).map((t) => ({ font: regular, text: t, size: 8 }))].slice(0, 4);
+    senderLines.forEach((l, i) => {
+      const f = fit(l.font, safe(l.font, l.text), l.size);
+      page.drawText(f.text, { x: LEFT, y: fromTop(14 + i * 4.4), size: f.size, font: l.font, color: i ? muted : ink });
+    });
     page.drawText(safe(regular, opts.date), { x: 125 * MM, y: fromTop(15), size: 10, font: regular, color: ink });
 
-    // Vastaanottaja osoitekenttään.
-    letter.address_lines.slice(0, 6).forEach((l, i) => {
-      page.drawText(safe(regular, l), { x: LEFT + 2 * MM, y: fromTop(47 + i * 5), size: 11, font: regular, color: ink });
+    // Vastaanottaja 40–60 mm: enintään neljä riviä. 30–40 mm jää tyhjäksi maksumerkinnälle.
+    letter.address_lines.slice(0, 4).forEach((l, i) => {
+      const f = fit(regular, safe(regular, l), 10.5);
+      page.drawText(f.text, { x: LEFT, y: fromTop(45 + i * 4.6), size: f.size, font: regular, color: ink });
     });
     if (opts.calibration) {
-      page.drawRectangle({
-        x: LEFT, y: fromTop(85), width: 90 * MM, height: 45 * MM, borderColor: rgb(0.2, 0.45, 0.8), borderWidth: 0.8, borderDashArray: [4, 3],
+      const blue = rgb(0.2, 0.45, 0.8);
+      const box = (top: number, bottom: number, left: number, right: number, dash: number[]) =>
+        page.drawRectangle({ x: left * MM, y: fromTop(bottom), width: (right - left) * MM, height: (bottom - top) * MM, borderColor: blue, borderWidth: 0.7, borderDashArray: dash });
+      box(10, 30, 20, 85, [4, 3]);
+      box(40, 60, 20, 85, [4, 3]);
+      box(0.5, 85, 0.5, 110, [1, 2]);
+      page.drawText("Maksumerkintä (30-40 mm), jätä tyhjäksi", { x: LEFT, y: fromTop(36), size: 7, font: regular, color: blue });
+      page.drawText("Lähettäjä 10-30 mm ja vastaanottaja 40-60 mm ylhäältä, 20-85 mm vasemmalta. Pisteviiva: turva-alue.", {
+        x: LEFT, y: fromTop(90), size: 7, font: regular, color: blue,
       });
-      page.drawText("Ikkunan ohjeellinen paikka (90 x 45 mm, 20 mm vasemmalta, 40 mm ylhäältä). Tarkista kirjekuorta vasten.", {
-        x: LEFT, y: fromTop(89), size: 7, font: regular, color: rgb(0.2, 0.45, 0.8),
-      });
-      page.drawLine({ start: { x: 0, y: fromTop(99) }, end: { x: 8 * MM, y: fromTop(99) }, thickness: 0.6, color: muted });
-      page.drawLine({ start: { x: 0, y: fromTop(148.5) }, end: { x: 8 * MM, y: fromTop(148.5) }, thickness: 0.6, color: muted });
     }
 
-    // Otsikko ja teksti.
+    // Otsikko ja teksti turva-alueen alapuolelle.
     let y = fromTop(105);
     for (const l of wrap(bold, 13, safe(bold, announcement.title), RIGHT - LEFT)) {
       page.drawText(l, { x: LEFT, y, size: 13, font: bold, color: ink });
@@ -125,6 +146,9 @@ export async function buildLettersPdf(
     if (pages.length > 1) {
       pages.forEach((p, i) => p.drawText(`${i + 1} (${pages.length})`, { x: 180 * MM, y: fromTop(15), size: 9, font: regular, color: muted }));
     }
+    pageCounts.add(pages.length);
   }
-  return doc.save();
+  // Postita jakaa PDF:n kirjeiksi sivumäärän mukaan (pdf_splitter), joten kirjeiden on oltava yhtä pitkiä.
+  if (pageCounts.size > 1) throw new Error("Kirjeiden sivumäärät poikkeavat toisistaan.");
+  return { pdf: await doc.save(), pagesPerLetter: [...pageCounts][0] ?? 0 };
 }

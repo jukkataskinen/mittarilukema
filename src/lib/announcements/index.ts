@@ -1,6 +1,8 @@
 import type { Sql } from "@/lib/db/types";
 import { audit } from "@/lib/audit";
 import { EmailError, type EmailSender } from "@/lib/email";
+import { LetterServiceError, type LetterJob, type LetterSender } from "@/lib/letters";
+import { buildLettersPdf } from "./letter";
 
 /**
  * Tiedotteet asiakkaille. Toimitus ensisijaisesti sähköpostilla; ilman
@@ -216,4 +218,114 @@ async function markSentIfDone(tx: Sql, announcementId: string) {
         and not exists (select 1 from ml_announcement_recipients where announcement_id = $1 and status in ('pending', 'sending', 'failed'))`,
     [announcementId],
   );
+}
+
+type Runner = <T>(fn: (tx: Sql) => Promise<T>) => Promise<T>;
+
+/**
+ * Kirjeet postituspalveluun vahvistamattomana työnä. Vastaanottajat varataan
+ * tilaan sending, jottei samaa kirjettä ladata kahdesti. Jos lataus
+ * epäonnistuu, varaus puretaan.
+ */
+export async function uploadLetters(
+  run: Runner,
+  sender: LetterSender,
+  input: { organizationId: string; userId: string; announcementId: string; postClass: 1 | 2; date: string },
+) {
+  const claimed = await run(async (tx) => {
+    const [a] = await tx.query<{ status: string; title: string; body: string; letter_job_id: string | null; letter_job_status: string | null } & OrgContact>(
+      `select a.status, a.title, a.body, a.letter_job_id, a.letter_job_status, o.name, o.contact_email, o.contact_phone, o.postal_street, o.postal_code, o.postal_city
+         from ml_announcements a join ml_organizations o on o.id = a.organization_id where a.id = $1 and a.organization_id = $2 for update of a`,
+      [input.announcementId, input.organizationId],
+    );
+    if (!a) throw new AnnouncementError("Tiedotetta ei löytynyt.");
+    if (a.status === "draft") throw new AnnouncementError("Lukitse vastaanottajat ennen kirjeiden lähetystä.");
+    if (a.letter_job_id && a.letter_job_status === "NE") throw new AnnouncementError("Kirjeet odottavat jo vahvistusta. Vahvista tai peru edellinen työ.");
+    if (!a.postal_street) throw new AnnouncementError("Organisaation postiosoite puuttuu. Lisää se Asetuksissa, se tulee kirjeen lähettäjäksi.");
+    const rows = await tx.query<{ id: string; name: string; address_lines: string[] }>(
+      `update ml_announcement_recipients set status = 'sending'
+        where announcement_id = $1 and organization_id = $2 and channel = 'letter' and status = 'pending'
+        returning id, name, address_lines`,
+      [input.announcementId, input.organizationId],
+    );
+    if (!rows.length) throw new AnnouncementError("Ei lähetettäviä kirjeitä.");
+    return { a, rows: rows.sort((x, y) => x.name.localeCompare(y.name, "fi")) };
+  });
+
+  let job: LetterJob;
+  try {
+    const { pdf, pagesPerLetter } = await buildLettersPdf(claimed.a, claimed.a, claimed.rows, { date: input.date });
+    job = await sender.upload({ jobName: `${claimed.a.name}: ${claimed.a.title}`.slice(0, 200), pdf, pagesPerLetter, letters: claimed.rows.length, postClass: input.postClass });
+  } catch (err) {
+    await run((tx) => tx.query("update ml_announcement_recipients set status = 'pending' where id = any($1::uuid[])", [claimed.rows.map((r) => r.id)]));
+    if (err instanceof LetterServiceError) throw new AnnouncementError(err.message);
+    throw err;
+  }
+
+  return run(async (tx) => {
+    await tx.query(
+      `update ml_announcements set letter_job_id = $2, letter_job_status = $3, letter_job_price = $4, letter_post_class = $5, letter_job_mode = $6, updated_at = now()
+        where id = $1`,
+      [input.announcementId, job.id, job.status, job.price, input.postClass, sender.mode],
+    );
+    await audit(tx, {
+      organizationId: input.organizationId, userId: input.userId, action: "announcement.letters_upload", entity: "ml_announcements", entityId: input.announcementId,
+      details: { letters: claimed.rows.length, postClass: input.postClass, mode: sender.mode, status: job.status },
+    });
+    return { letters: claimed.rows.length, job };
+  });
+}
+
+/** Vahvistaa kirjetyön postitettavaksi; vastaanottajat merkitään postitetuiksi. */
+export async function confirmLetters(run: Runner, sender: LetterSender, input: { organizationId: string; userId: string; announcementId: string }) {
+  const jobId = await pendingJob(run, input);
+  let job: LetterJob;
+  try {
+    job = await sender.confirm(jobId);
+  } catch (err) {
+    if (err instanceof LetterServiceError) throw new AnnouncementError(err.message);
+    throw err;
+  }
+  return run(async (tx) => {
+    const rows = await tx.query(
+      `update ml_announcement_recipients set status = 'printed', sent_at = now()
+        where announcement_id = $1 and organization_id = $2 and channel = 'letter' and status = 'sending' returning id`,
+      [input.announcementId, input.organizationId],
+    );
+    await tx.query("update ml_announcements set letter_job_status = $2, letter_job_price = coalesce($3, letter_job_price), updated_at = now() where id = $1", [
+      input.announcementId, job.status || "CO", job.price,
+    ]);
+    await markSentIfDone(tx, input.announcementId);
+    await audit(tx, { organizationId: input.organizationId, userId: input.userId, action: "announcement.letters_confirm", entity: "ml_announcements", entityId: input.announcementId, details: { letters: rows.length } });
+    return rows.length;
+  });
+}
+
+/** Peruu vahvistamattoman kirjetyön; kirjeet palaavat lähettämättömiksi. */
+export async function cancelLetters(run: Runner, sender: LetterSender, input: { organizationId: string; userId: string; announcementId: string }) {
+  const jobId = await pendingJob(run, input);
+  try {
+    await sender.cancel(jobId);
+  } catch (err) {
+    if (err instanceof LetterServiceError) throw new AnnouncementError(err.message);
+    throw err;
+  }
+  await run(async (tx) => {
+    await tx.query("update ml_announcement_recipients set status = 'pending' where announcement_id = $1 and organization_id = $2 and channel = 'letter' and status = 'sending'", [
+      input.announcementId, input.organizationId,
+    ]);
+    await tx.query("update ml_announcements set letter_job_status = 'CA', updated_at = now() where id = $1", [input.announcementId]);
+    await audit(tx, { organizationId: input.organizationId, userId: input.userId, action: "announcement.letters_cancel", entity: "ml_announcements", entityId: input.announcementId });
+  });
+}
+
+async function pendingJob(run: Runner, input: { organizationId: string; announcementId: string }) {
+  const [a] = await run((tx) =>
+    tx.query<{ letter_job_id: string | null; letter_job_status: string | null }>(
+      "select letter_job_id, letter_job_status from ml_announcements where id = $1 and organization_id = $2",
+      [input.announcementId, input.organizationId],
+    ),
+  );
+  if (!a?.letter_job_id || a.letter_job_status !== "NE") throw new AnnouncementError("Vahvistamatonta kirjetyötä ei ole.");
+  return a.letter_job_id;
 }

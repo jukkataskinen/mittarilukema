@@ -6,9 +6,12 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/current-user";
 import { emptyToNull, fail, parseForm } from "@/lib/forms";
 import { audit } from "@/lib/audit";
-import { isoDateHelsinki } from "@/lib/format";
+import { formatDate, isoDateHelsinki } from "@/lib/format";
+import { letterSender, LetterServiceError } from "@/lib/letters";
 import { emailSender, EmailError } from "@/lib/email";
-import { AnnouncementError, composeEmail, lockAnnouncement, markLettersPrinted, sendEmailBatch, type OrgContact } from "@/lib/announcements";
+import {
+  AnnouncementError, cancelLetters, composeEmail, confirmLetters, lockAnnouncement, markLettersPrinted, sendEmailBatch, uploadLetters, type OrgContact,
+} from "@/lib/announcements";
 
 const schema = z.object({
   title: z.string().trim().min(1, "Anna tiedotteelle otsikko.").max(200),
@@ -129,4 +132,57 @@ export async function markLettersAction(formData: FormData) {
   const n = await ctx.run((tx) => markLettersPrinted(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, announcementId: id }));
   revalidatePath(`/tiedotteet/${id}`);
   redirect(`/tiedotteet/${id}?postitettu=${n}`);
+}
+
+export async function uploadLettersAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const id = idOf(formData);
+  const back = `/tiedotteet/${id}`;
+  const postClass = formData.get("postClass") === "1" ? 1 : 2;
+  let sender;
+  try {
+    sender = letterSender();
+  } catch (err) {
+    fail(back, err instanceof LetterServiceError ? err.message : "Kirjepalvelua ei ole määritetty.");
+  }
+  let r;
+  try {
+    r = await uploadLetters(ctx.run.bind(ctx), sender!, {
+      organizationId: ctx.org.organizationId, userId: ctx.user.id, announcementId: id, postClass, date: formatDate(isoDateHelsinki()),
+    });
+  } catch (err) {
+    if (err instanceof AnnouncementError) fail(back, err.message);
+    throw err;
+  }
+  revalidatePath(back);
+  redirect(`${back}?kirjeet=${r.letters}`);
+}
+
+export async function confirmLettersAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const id = idOf(formData);
+  const back = `/tiedotteet/${id}`;
+  let n = 0;
+  try {
+    n = await confirmLetters(ctx.run.bind(ctx), letterSender(), { organizationId: ctx.org.organizationId, userId: ctx.user.id, announcementId: id });
+  } catch (err) {
+    if (err instanceof AnnouncementError || err instanceof LetterServiceError) fail(back, err.message);
+    throw err;
+  }
+  revalidatePath(back);
+  redirect(`${back}?postitettu=${n}`);
+}
+
+export async function cancelLettersAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const id = idOf(formData);
+  const back = `/tiedotteet/${id}`;
+  try {
+    await cancelLetters(ctx.run.bind(ctx), letterSender(), { organizationId: ctx.org.organizationId, userId: ctx.user.id, announcementId: id });
+  } catch (err) {
+    if (err instanceof AnnouncementError || err instanceof LetterServiceError) fail(back, err.message);
+    throw err;
+  }
+  revalidatePath(back);
+  redirect(back);
 }
