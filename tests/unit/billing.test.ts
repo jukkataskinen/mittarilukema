@@ -138,6 +138,13 @@ describe("Joutsan lasku", () => {
     expect(r.issues.join()).toMatch(/pienempi kuin edellinen.*Tarkista/);
   });
 
+  it("suuri negatiivinen kulutus ei tuota hyvitystä", () => {
+    const r = calculateBill(base({ meters: [{ ...base().meters[0], readings: [{ readOn: "2025-09-30", reading: 8283 }, { readOn: "2026-03-31", reading: 1265 }] }] }));
+    expect(r.waterM3).toBe(0);
+    expect(r.lines.every((l) => l.net >= 0)).toBe(true);
+    expect(r.issues.join()).toMatch(/mittarinvaihto tai näppäilyvirhe/);
+  });
+
   it("puuttuva perusmaksuluokka on huomautus", () => {
     const r = calculateBill(base({ connections: base().connections.map((c) => ({ ...c, feeClass: null })) }));
     expect(r.issues.join()).toMatch(/perusmaksuluokka puuttuu/);

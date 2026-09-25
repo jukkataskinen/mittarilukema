@@ -54,7 +54,7 @@
 
 **Laskutusajon rajaus alueittain.** Ajo tehdään kaikille kiinteistöille, kiinteistöille ilman aluetta tai yhdelle alueelle. Joutsassa Rutalahti laskutetaan eri jaksolla (31.12.–30.6.) kuin Joutsa ja Leivonmäki (30.9.–31.3.).
 
-**Negatiivinen kulutus hyvitetään (korjattu 25.9.2026).** Jos lukema on pienempi kuin edellinen, erotus vähennetään kulutuksesta ja laskulle jää huomautus. Alkuperäinen päätös laskea kulutukseksi 0 osoittautui vääräksi: vanha järjestelmä on hyvittänyt negatiivisen kulutuksen (liian suuri edellinen lukema, esimerkiksi arvio), ja nollaus olisi laskuttanut asiakasta liikaa. Vertailussa Fennoan laskuihin 17 tällaista laskua.
+**Negatiivinen kulutus hyvitetään enintään 50 m³ (korjattu 26.9.2026).** Jos lukema on pienempi kuin edellinen enintään 50 m³, erotus vähennetään kulutuksesta kuten vanhassa järjestelmässä (edellinen lukema oli liian suuri); 17 Fennoan laskua vastaa tätä. Suurempi miinus (tuotannossa −369, −3 439 ja −7 018 m³) on kirjaamaton mittarinvaihto tai näppäilyvirhe: kulutukseksi lasketaan 0. Kumpikin jää laskulle huomautukseksi. Ensimmäinen päätös (aina 0) laskutti liikaa, toinen (aina hyvitys) olisi tuottanut kymmenien tuhansien eurojen virheelliset hyvitykset.
 
 **Joutsan alueet Unes-tunnuksesta.** Kiinteistön alue on käyttöpaikan tunnuksen ensimmäinen numero 1–9 (Jukka 25.9.2026). Alue 9 on sama joukko kuin Rutalahti (68 kiinteistöä) ja säilyttää nimensä, koska sen hinnat on sidottu alueeseen. Muut alueet ovat nimillä Alue 1–Alue 8 siihen asti, kun oikeat nimet tiedetään; nimen voi vaihtaa asetuksissa. Laskutusajossa on rajaus kaikki paitsi alue (0009), ja Joutsan pääajo on kaikki paitsi Rutalahti.
 

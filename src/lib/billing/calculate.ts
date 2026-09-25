@@ -114,6 +114,13 @@ export interface BillingResult {
   issues: string[];
 }
 
+/**
+ * Negatiivinen kulutus hyvitetään enintään tähän asti (m³). Pienet miinukset ovat
+ * korjauksia liian suureen edelliseen lukemaan; suuret (satoja tai tuhansia m³)
+ * ovat kirjaamattomia mittarinvaihtoja tai näppäilyvirheitä, joista ei makseta hyvitystä.
+ */
+export const NEGATIVE_CREDIT_LIMIT_M3 = 50;
+
 const DAY = 86_400_000;
 const toDay = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / DAY;
 const fromDay = (d: number) => new Date(d * DAY).toISOString().slice(0, 10);
@@ -202,11 +209,17 @@ export function calculateBill(input: BillingInput): BillingResult {
     if (!u) continue;
     const name = m.meterNumber ? `Mittari ${m.meterNumber}` : "Mittari";
     if (!u.to) issues.push(`${name}: lukema puuttuu jakson lopusta.`);
-    // Negatiivinen kulutus vähennetään (hyvitys), kuten vanhassa järjestelmässä: edellinen lukema oli
-    // liian suuri (arvio tai näppäilyvirhe). Voi olla myös kirjaamaton mittarinvaihto, joten tarkistettava.
-    if (u.m3 < 0) issues.push(`${name}: lukema on pienempi kuin edellinen (${u.m3} m³), erotus vähennetty kulutuksesta. Tarkista.`);
-    usage.push({ meterId: m.id, connectionKind: conn.kind, from: u.from, to: u.to, m3: u.m3 });
-    metered += u.m3;
+    // Pieni negatiivinen kulutus vähennetään (hyvitys), kuten vanhassa järjestelmässä: edellinen lukema oli
+    // liian suuri. Suuri miinus on mittarinvaihto tai virhe: kulutukseksi 0. Kumpikin tarkistetaan.
+    let m3 = u.m3;
+    if (u.m3 < 0 && u.m3 >= -NEGATIVE_CREDIT_LIMIT_M3) {
+      issues.push(`${name}: lukema on pienempi kuin edellinen (${u.m3} m³), erotus vähennetty kulutuksesta. Tarkista.`);
+    } else if (u.m3 < 0) {
+      issues.push(`${name}: lukema on ${-u.m3} m³ pienempi kuin edellinen, todennäköisesti mittarinvaihto tai näppäilyvirhe. Kulutukseksi laskettu 0. Tarkista.`);
+      m3 = 0;
+    }
+    usage.push({ meterId: m.id, connectionKind: conn.kind, from: u.from, to: u.to, m3 });
+    metered += m3;
   }
   if (measuringKind && usage.length === 0) issues.push("Kiinteistöllä ei ole mittaria jaksolla.");
   }
