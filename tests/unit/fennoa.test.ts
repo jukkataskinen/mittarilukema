@@ -111,10 +111,19 @@ describe("Fennoan takaisinluku", () => {
     vi.stubEnv("FENNOA_TEST_API_USER", "u");
     vi.stubEnv("FENNOA_TEST_API_KEY", "k");
     vi.stubGlobal("fetch", vi.fn(async () =>
-      new Response(JSON.stringify({ status: "OK", data: { SalesInvoice: { id: 452, sales_invoice_delivery_method_id: 4, einvoice_address: "003712345678", total_gross: "229.64" } } }), { status: 200 }),
+      new Response(JSON.stringify({ status: "OK", data: { SalesInvoice: {
+        id: 452, sales_invoice_delivery_method_id: 4, delivery_period_start: "2026-09-01", einvoice_address: "003712345678", einvoice_operator: "", total_gross: "229.64",
+      } } }), { status: 200 }),
     ));
-    const back = await fennoaClient().getInvoice("452");
-    expect(back).toEqual({ deliveryMethod: null, gross: 229.64, deliveryFields: ["data.SalesInvoice.sales_invoice_delivery_method_id=4"] });
+    const back = await fennoaClient().getInvoice("452", { einvoiceAddress: "0037 12345678", einvoiceOperator: "003721291126" });
+    expect(back).toEqual({
+      deliveryMethod: null, gross: 229.64,
+      deliveryFields: [
+        "data.SalesInvoice.sales_invoice_delivery_method_id=4",
+        "data.SalesInvoice.einvoice_address: sama kuin lähetetty",
+        "data.SalesInvoice.einvoice_operator: tyhjä",
+      ],
+    });
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
   });

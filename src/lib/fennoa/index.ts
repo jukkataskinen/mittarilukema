@@ -22,7 +22,8 @@ export interface FennoaClient {
   /** Luo laskuluonnoksen (sales_api/add). Palauttaa Fennoan laskutunnuksen. */
   addInvoice(form: Record<string, string>): Promise<{ id: string }>;
   /** Lukee laskun takaisin (GET sales_api/<id>) laskukanavan ja summan tarkistusta varten. */
-  getInvoice(id: string): Promise<FennoaReadBack>;
+  /** expected: lähetetty verkkolaskuosoite ja välittäjä vertailua varten (arvoja ei palauteta). */
+  getInvoice(id: string, expected?: { einvoiceAddress?: string; einvoiceOperator?: string }): Promise<FennoaReadBack>;
 }
 
 export class FennoaError extends Error {
@@ -100,12 +101,12 @@ function httpClient(user: string, key: string): FennoaClient {
       if (id === undefined || id === null) throw new FennoaError("Fennoa ei palauttanut laskutunnusta.", null);
       return { id: String(id) };
     },
-    async getInvoice(id) {
+    async getInvoice(id, expected) {
       const body = await call("GET", `sales_api/${encodeURIComponent(id)}`);
       return {
         deliveryMethod: findKey(body, "delivery_method"),
         gross: toNumber(findKey(body, "total_gross") ?? findKey(body, "gross_total") ?? findKey(body, "total_sum")),
-        deliveryFields: deliveryFields(body),
+        deliveryFields: deliveryFields(body, expected),
       };
     },
   };
@@ -115,16 +116,33 @@ function httpClient(user: string, key: string): FennoaClient {
  * Toimitustapaan liittyvät kentät vastauksesta (avaimessa "deliver"), jotta poikkeamasta
  * nähdään, mitä Fennoa tallensi. Osoite- ja verkkolaskuosoitekentät jätetään pois.
  */
-function deliveryFields(obj: unknown, depth = 0, prefix = ""): string[] {
+function deliveryFields(
+  obj: unknown,
+  expected?: { einvoiceAddress?: string; einvoiceOperator?: string },
+  depth = 0,
+  prefix = "",
+): string[] {
   if (!obj || typeof obj !== "object" || depth > 4) return [];
+  const norm = (v: unknown) => String(v ?? "").replace(/\s/g, "").toUpperCase();
   const out: string[] = [];
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
     const key = prefix ? `${prefix}.${k}` : k;
-    if (/address|osoite|email|bic/i.test(k)) continue;
-    if (v && typeof v === "object") out.push(...deliveryFields(v, depth + 1, key));
-    else if (/deliver/i.test(k) && v !== null && v !== "") out.push(`${key}=${String(v).slice(0, 40)}`);
+    if (v && typeof v === "object") {
+      out.push(...deliveryFields(v, expected, depth + 1, key));
+      continue;
+    }
+    // Verkkolaskuosoite ja välittäjä: vain kentän nimi ja täsmääkö se lähetettyyn (arvo voi olla henkilötieto).
+    if (/einvoice|operator/i.test(k)) {
+      const sent = /operator/i.test(k) ? expected?.einvoiceOperator : expected?.einvoiceAddress;
+      const state = v === null || v === "" ? "tyhjä" : sent === undefined ? "annettu" : norm(v) === norm(sent) ? "sama kuin lähetetty" : "eri kuin lähetetty";
+      out.push(`${key}: ${state}`);
+    } else if (/address|osoite|email|bic/i.test(k)) {
+      continue;
+    } else if (/deliver|method|channel/i.test(k) && !/period/i.test(k) && v !== null && v !== "") {
+      out.push(`${key}=${String(v).slice(0, 40)}`);
+    }
   }
-  return out.slice(0, 8);
+  return out.slice(0, 10);
 }
 
 /** Kentän arvo vastauksesta syvyydestä riippumatta (vastauksen kääre ei ole dokumentoitu). */

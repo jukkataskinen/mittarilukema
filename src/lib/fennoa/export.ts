@@ -137,7 +137,7 @@ export async function exportRunToFennoa(
       let back: FennoaReadBack = { deliveryMethod: null, gross: null };
       let readError: string | null = null;
       try {
-        back = await client.getInvoice(id);
+        back = await client.getInvoice(id, { einvoiceAddress: item.build.form.einvoice_address, einvoiceOperator: item.build.form.einvoice_operator });
       } catch (err) {
         readError = err instanceof Error ? err.message : "tuntematon virhe";
       }
