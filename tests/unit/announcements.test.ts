@@ -56,3 +56,37 @@ describe("ikkunakirjeet", () => {
     expect((await PDFDocument.load(pdf)).getPageCount()).toBe(1);
   });
 });
+
+describe("PDF-tiedote", () => {
+  const samplePdf = async (pages: number, size: [number, number] = [612, 792]) => {
+    const d = await PDFDocument.create();
+    for (let i = 0; i < pages; i++) d.addPage(size).drawText(`Sivu ${i + 1}`, { x: 50, y: 700 });
+    return d.save();
+  };
+
+  it("kirjeessä saatesivu ja liitteen sivut A4-kokoisina", async () => {
+    const attachment = await samplePdf(2);
+    const { pdf, pagesPerLetter } = await buildLettersPdf(org, { title: "Tiedote", body: "" }, [
+      { name: "A", address_lines: ["A", "Tie 1", "41800 KORPILAHTI"] },
+      { name: "B", address_lines: ["B", "Tie 2", "41800 KORPILAHTI"] },
+    ], { date: "26.9.2026", attachment });
+    expect(pagesPerLetter).toBe(3);
+    const doc = await PDFDocument.load(pdf);
+    expect(doc.getPageCount()).toBe(6);
+    expect(doc.getPages().every((p) => Math.round(p.getWidth()) === 595 && Math.round(p.getHeight()) === 842)).toBe(true);
+  });
+
+  it("sähköposti ilman tekstiä kertoo liitteestä", () => {
+    const m = composeEmail({ title: "Tiedote", body: "" }, org, "tiedote.pdf");
+    expect(m.text).toMatch(/^Tiedote on tämän viestin liitteenä \(PDF\)\./);
+    const withBody = composeEmail({ title: "Tiedote", body: "Hei." }, org, "tiedote.pdf");
+    expect(withBody.text).toMatch(/Hei\.\n\nLiite: tiedote\.pdf/);
+  });
+
+  it("vain avattava PDF kelpaa", async () => {
+    const { validatePdf } = await import("@/lib/announcements/attachment");
+    await expect(validatePdf(new TextEncoder().encode("ei pdf"))).rejects.toThrow(/ei ole PDF/);
+    await expect(validatePdf(new TextEncoder().encode("%PDF-rikki"))).rejects.toThrow(/ei voitu avata/);
+    expect(await validatePdf(await samplePdf(3))).toEqual({ pages: 3 });
+  });
+});

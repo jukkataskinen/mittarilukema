@@ -18,8 +18,12 @@ export function AnnouncementForm({
       <Field label="Otsikko" htmlFor="title" hint="Sähköpostin aihe ja kirjeen otsikko.">
         <Input id="title" name="title" defaultValue={announcement?.title} required maxLength={200} />
       </Field>
-      <Field label="Teksti" htmlFor="body" hint="Tyhjä rivi aloittaa uuden kappaleen. Allekirjoitukseksi lisätään organisaation nimi ja yhteystiedot asetuksista.">
-        <Textarea id="body" name="body" defaultValue={announcement?.body} required rows={14} maxLength={20000} />
+      <Field
+        label="Teksti"
+        htmlFor="body"
+        hint="Tyhjä rivi aloittaa uuden kappaleen. Allekirjoitukseksi lisätään organisaation nimi ja yhteystiedot asetuksista. Jos tiedote on valmis PDF, sen voi liittää tallennuksen jälkeen; teksti on silloin vapaaehtoinen saate."
+      >
+        <Textarea id="body" name="body" defaultValue={announcement?.body} rows={14} maxLength={20000} />
       </Field>
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Vastaanottajat" htmlFor="audience">

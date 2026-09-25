@@ -78,7 +78,7 @@ export async function buildLettersPdf(
   org: OrgContact,
   announcement: { title: string; body: string },
   letters: Letter[],
-  opts: { date: string; calibration?: boolean },
+  opts: { date: string; calibration?: boolean; attachment?: Uint8Array | null },
 ): Promise<{ pdf: Uint8Array; pagesPerLetter: number }> {
   const doc = await PDFDocument.create();
   doc.setTitle(announcement.title);
@@ -89,6 +89,8 @@ export async function buildLettersPdf(
   const muted = rgb(0.35, 0.39, 0.45);
   const sender = signature(org);
   const pageCounts = new Set<number>();
+  // PDF-liitteen sivut upotetaan kerran ja piirretään jokaisen kirjeen saatesivun perään A4-kokoon sovitettuina.
+  const attachmentPages = opts.attachment ? await doc.embedPages((await PDFDocument.load(opts.attachment)).getPages()) : [];
 
   for (const letter of letters) {
     const pages: PDFPage[] = [];
@@ -133,7 +135,8 @@ export async function buildLettersPdf(
     }
     y -= 2 * MM;
     const lineH = 5.2 * MM;
-    const body = [...wrap(regular, 11, safe(regular, announcement.body.trim().replace(/\r/g, "")), RIGHT - LEFT), "", ...sender.map((s) => safe(regular, s))];
+    const text = announcement.body.trim().replace(/\r/g, "") || (attachmentPages.length ? "Tiedote on seuraavilla sivuilla." : "");
+    const body = [...wrap(regular, 11, safe(regular, text), RIGHT - LEFT), "", ...sender.map((s) => safe(regular, s))];
     for (const l of body) {
       if (y < BOTTOM) {
         page = newPage();
@@ -146,7 +149,12 @@ export async function buildLettersPdf(
     if (pages.length > 1) {
       pages.forEach((p, i) => p.drawText(`${i + 1} (${pages.length})`, { x: 180 * MM, y: fromTop(15), size: 9, font: regular, color: muted }));
     }
-    pageCounts.add(pages.length);
+    for (const ep of attachmentPages) {
+      const p = doc.addPage([PAGE_W, PAGE_H]);
+      const scale = Math.min(PAGE_W / ep.width, PAGE_H / ep.height, 1);
+      p.drawPage(ep, { x: (PAGE_W - ep.width * scale) / 2, y: (PAGE_H - ep.height * scale) / 2, xScale: scale, yScale: scale });
+    }
+    pageCounts.add(pages.length + attachmentPages.length);
   }
   // Postita jakaa PDF:n kirjeiksi sivumäärän mukaan (pdf_splitter), joten kirjeiden on oltava yhtä pitkiä.
   if (pageCounts.size > 1) throw new Error("Kirjeiden sivumäärät poikkeavat toisistaan.");

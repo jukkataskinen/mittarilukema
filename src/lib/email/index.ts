@@ -14,6 +14,7 @@ export interface EmailMessage {
   /** Näkyvä lähettäjän nimi, esim. organisaation nimi. */
   fromName: string;
   replyTo?: string | null;
+  attachments?: { filename: string; content: Uint8Array }[];
 }
 
 export interface EmailSender {
@@ -52,6 +53,7 @@ function resend(apiKey: string, from: string): EmailSender {
           text: m.text,
           html: m.html,
           ...(m.replyTo ? { reply_to: m.replyTo } : {}),
+          ...(m.attachments?.length ? { attachments: m.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.content).toString("base64") })) } : {}),
         }),
         signal: AbortSignal.timeout(15_000),
       });

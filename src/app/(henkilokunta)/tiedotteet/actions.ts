@@ -8,6 +8,7 @@ import { emptyToNull, fail, parseForm } from "@/lib/forms";
 import { audit } from "@/lib/audit";
 import { formatDate, isoDateHelsinki } from "@/lib/format";
 import { letterSender, LetterServiceError } from "@/lib/letters";
+import { deleteAttachment, getAttachment, MAX_ATTACHMENT_BYTES, saveAttachment } from "@/lib/announcements/attachment";
 import { emailSender, EmailError } from "@/lib/email";
 import {
   AnnouncementError, cancelLetters, composeEmail, confirmLetters, lockAnnouncement, markLettersPrinted, sendEmailBatch, uploadLetters, type OrgContact,
@@ -15,7 +16,8 @@ import {
 
 const schema = z.object({
   title: z.string().trim().min(1, "Anna tiedotteelle otsikko.").max(200),
-  body: z.string().trim().min(1, "Kirjoita tiedotteen teksti.").max(20000),
+  // Teksti on vapaaehtoinen, jos tiedotteeseen liitetään PDF (tarkistetaan lukittaessa).
+  body: z.string().trim().max(20000),
   audience: z.enum(["payers", "contracts"]),
   areaId: z.preprocess(emptyToNull, z.string().uuid().nullable()),
   delivery: z.enum(["email_first", "letter_all"]),
@@ -118,8 +120,12 @@ export async function sendTestEmailAction(formData: FormData) {
   });
   if (!data) fail("/tiedotteet", "Tiedotetta ei löytynyt.");
   try {
-    const m = composeEmail(data!, data!);
-    await emailSender().send({ ...m, subject: `Koe: ${m.subject}`, to: ctx.user.email, fromName: data!.name, replyTo: data!.contact_email });
+    const att = await ctx.run((tx) => getAttachment(tx, ctx.org.organizationId, id));
+    const m = composeEmail(data!, data!, att?.filename);
+    await emailSender().send({
+      ...m, subject: `Koe: ${m.subject}`, to: ctx.user.email, fromName: data!.name, replyTo: data!.contact_email,
+      attachments: att ? [{ filename: att.filename, content: att.data }] : undefined,
+    });
   } catch (err) {
     fail(back, err instanceof EmailError ? err.message : "Koeviestin lähetys epäonnistui.");
   }
@@ -185,4 +191,31 @@ export async function cancelLettersAction(formData: FormData) {
   }
   revalidatePath(back);
   redirect(back);
+}
+
+export async function uploadAttachmentAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const id = idOf(formData);
+  const back = `/tiedotteet/${id}`;
+  const file = formData.get("pdf");
+  if (!(file instanceof File) || file.size === 0) fail(back, "Valitse PDF-tiedosto.");
+  if ((file as File).size > MAX_ATTACHMENT_BYTES) fail(back, "PDF on liian suuri (enintään 4 Mt).");
+  try {
+    const bytes = new Uint8Array(await (file as File).arrayBuffer());
+    await ctx.run((tx) => saveAttachment(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, announcementId: id, filename: (file as File).name, bytes }));
+  } catch (err) {
+    if (err instanceof AnnouncementError) fail(back, err.message);
+    throw err;
+  }
+  revalidatePath(back);
+  redirect(back);
+}
+
+export async function deleteAttachmentAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const id = idOf(formData);
+  const ok = await ctx.run((tx) => deleteAttachment(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, announcementId: id }));
+  if (!ok) fail(`/tiedotteet/${id}`, "Lähetetyn tiedotteen liitettä ei voi poistaa.");
+  revalidatePath(`/tiedotteet/${id}`);
+  redirect(`/tiedotteet/${id}`);
 }

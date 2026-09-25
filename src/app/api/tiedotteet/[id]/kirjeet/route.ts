@@ -3,6 +3,7 @@ import { getCurrentUser, requireStaff } from "@/lib/auth/current-user";
 import { formatDate, isoDateHelsinki } from "@/lib/format";
 import { buildLettersPdf, type Letter } from "@/lib/announcements/letter";
 import type { OrgContact } from "@/lib/announcements";
+import { getAttachment } from "@/lib/announcements/attachment";
 
 /**
  * Tiedotteen kirjeet PDF:nä ikkunakuoriin. Oletuksena tulostamattomat
@@ -43,7 +44,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     : data.letters;
   if (!letters.length) return new NextResponse("Ei tulostettavia kirjeitä", { status: 404 });
 
-  const { pdf } = await buildLettersPdf(data.a, data.a, letters, { date: formatDate(isoDateHelsinki()), calibration });
+  const attachment = await ctx.run((tx) => getAttachment(tx, ctx.org.organizationId, id));
+  const { pdf } = await buildLettersPdf(data.a, data.a, letters, { date: formatDate(isoDateHelsinki()), calibration, attachment: attachment?.data });
   const name = calibration ? "koetuloste" : "tiedote-kirjeet";
   return new NextResponse(Buffer.from(pdf), {
     headers: {

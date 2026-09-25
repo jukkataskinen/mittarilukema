@@ -91,6 +91,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 
 ### Tiedotteet
 - [x] Tiedotteet asiakkaille: sähköposti ensin, ikkunakirje PDF:nä, vastaanottajien lukitus ja tila (0016)
+- [x] PDF-tiedotteet: PDF sähköpostin liitteenä ja kirjeen saatesivun perässä (0020)
 - [ ] Sähköpostipalvelun käyttöönotto (BLOCKERS 15)
 - [x] Kirjeet Postitan kautta: kirjepohja Postitan mittoihin, lataus vahvistamattomana, vahvistus ja peruutus (0017)
 - [ ] Postita-tilin käyttöönotto (BLOCKERS 16)

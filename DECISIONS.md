@@ -136,3 +136,8 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 **Perusmaksu 2 alkoi 1.8.2026.** Maksu on ensimmäisen kerran elokuun 2026 laskuilla (148 kpl), mutta ei kesäkuun laskuilla. Aiempi oletus, 1.9.2026, korjattiin.
 
 **Mittarilukemataulukko 2025.** Kärkisen taulukossa (Aallon Groupille 25.3.2026) on edellinen lukema ja lukema 31.12.2025. Kiinteistöille, joilla ei ollut mittaria tasauslaskulta, perustetaan mittari taulukon lukemilla (46 mittaria). Tasauslaskun mittareilla loppulukema vahvistui 50:ssä ja poikkesi 3:ssa. Kaksi PDF-tiedostoa (Vesitasauslaskut, Tilisiirrot 202609) on lukukelvottomia, koska fonteilta puuttuu merkkikartta. Ne ovat samaa tietoa kuin luettavat tiedostot. "Tilisiirrot syyskuun laskutus" on syyskuun 2025 laskutus.
+
+**PDF-tiedotteet (0020, Jukka 26.9.2026).** Tiedotteet ovat usein valmiita PDF-tiedostoja, joten tiedotteeseen voi liittää yhden PDF:n (enintään 4 Mt ja 50 sivua, ei salasanasuojausta). Kirjoitettu teksti on silloin vapaaehtoinen saate. Tiedotteen lukitseminen vaatii joko tekstin tai liitteen.
+- Sähköpostissa PDF on viestin liitteenä. Jos tekstiä ei ole, viestissä kerrotaan, että tiedote on liitteenä.
+- Kirjeessä osoitteellinen saatesivu tulee ikkunakuoren kohdalle, ja PDF:n sivut tulevat sen perään A4-kokoon sovitettuina. Postitan raja on 12 sivua kirjettä kohden.
+- Tiedosto tallennetaan kantaan (bytea) samojen organisaatiorajausten taakse kuin tiedote. Näin erillistä tiedostopalvelua ei tarvita, ja Vercelin 4,5 Mt:n pyyntöraja riittää.

@@ -11,6 +11,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // PGlite on WASM-paketti, jota ei saa niputtaa palvelinkoodiin.
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  // Tiedotteen PDF-liite lähetetään server actionilla (enintään 4 Mt, Vercelin raja 4,5 Mt).
+  experimental: { serverActions: { bodySizeLimit: "4.5mb" } },
   outputFileTracingIncludes: {
     "/**": ["./supabase/migrations/**"],
   },

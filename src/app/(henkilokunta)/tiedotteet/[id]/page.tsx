@@ -11,9 +11,10 @@ import {
   type Audience, type Channel, type Delivery,
 } from "@/lib/announcements";
 import {
-  cancelLettersAction, confirmLettersAction, deleteAnnouncementAction, lockAnnouncementAction, markLettersAction, sendEmailsAction, sendTestEmailAction,
-  uploadLettersAction,
+  cancelLettersAction, confirmLettersAction, deleteAnnouncementAction, deleteAttachmentAction, lockAnnouncementAction, markLettersAction, sendEmailsAction,
+  sendTestEmailAction, uploadAttachmentAction, uploadLettersAction,
 } from "../actions";
+import { attachmentInfo } from "@/lib/announcements/attachment";
 
 const JOB_STATUS: Record<string, string> = {
   NE: "odottaa vahvistusta", CO: "vahvistettu, lähtee seuraavana arkipäivänä", PR: "käsittelyssä", SE: "lähetetty", CA: "peruttu",
@@ -51,10 +52,10 @@ export default async function AnnouncementPage({ params, searchParams }: { param
             "select id, customer_id, name, channel, status, message, sent_at from ml_announcement_recipients where announcement_id = $1 order by channel, name",
             [id],
           );
-    return { a, recipients };
+    return { a, recipients, attachment: await attachmentInfo(tx, orgId, id) };
   });
   if (!data) notFound();
-  const { a, recipients } = data;
+  const { a, recipients, attachment } = data;
   const draft = a.status === "draft";
   const count = (ch: Channel, st?: string[]) => recipients.filter((r) => r.channel === ch && (!st || st.includes(r.status))).length;
   const mode = emailMode();
@@ -121,7 +122,44 @@ export default async function AnnouncementPage({ params, searchParams }: { param
       <section className="mt-8">
         <SectionTitle>Tiedote</SectionTitle>
         <Panel>
-          <p className="whitespace-pre-line text-sm leading-relaxed">{a.body}</p>
+          {a.body ? <p className="whitespace-pre-line text-sm leading-relaxed">{a.body}</p> : <p className="text-sm text-ink/60">Ei kirjoitettua tekstiä.</p>}
+        </Panel>
+      </section>
+
+      <section className="mt-8">
+        <SectionTitle>PDF-liite</SectionTitle>
+        <Panel>
+          {attachment ? (
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <a href={`/api/tiedotteet/${id}/liite`} className="font-semibold text-sky hover:underline">
+                {attachment.filename}
+              </a>
+              <span className="text-ink/60">
+                {attachment.pages} {attachment.pages === 1 ? "sivu" : "sivua"}, {Math.max(1, Math.round(attachment.size_bytes / 1024))} kt
+              </span>
+              {draft ? (
+                <form action={deleteAttachmentAction}>
+                  <input type="hidden" name="announcementId" value={id} />
+                  <Button variant="secondary">Poista liite</Button>
+                </form>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-ink/60">Ei liitettä.</p>
+          )}
+          {draft ? (
+            <form action={uploadAttachmentAction} className="mt-4 flex flex-wrap items-end gap-3">
+              <input type="hidden" name="announcementId" value={id} />
+              <label className="text-sm">
+                <span className="mb-1 block font-semibold">{attachment ? "Korvaa PDF" : "Liitä PDF"}</span>
+                <input type="file" name="pdf" accept="application/pdf,.pdf" required className="text-sm" />
+              </label>
+              <Button variant="secondary">Tallenna liite</Button>
+            </form>
+          ) : null}
+          <p className="mt-3 text-xs text-ink/55">
+            Sähköpostissa PDF on viestin liitteenä. Kirjeessä sen sivut tulevat osoitteellisen saatesivun perään (enintään 12 sivua kirjettä kohden). Enintään 4 Mt.
+          </p>
         </Panel>
       </section>
 

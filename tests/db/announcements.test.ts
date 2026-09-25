@@ -110,3 +110,25 @@ describe("kirjeet postituspalvelun kautta", () => {
     expect(row).toEqual({ letter_job_status: "CO", letter_post_class: 1 });
   });
 });
+
+describe("PDF-liite", () => {
+  it("tallentuu ja luetaan takaisin, ja lukitus vaatii tekstin tai liitteen", async () => {
+    const { PDFDocument } = await import("pdf-lib");
+    const { saveAttachment, getAttachment } = await import("@/lib/announcements/attachment");
+    const d = await PDFDocument.create();
+    d.addPage();
+    const bytes = await d.save();
+    const id = await db.asUser(a.staff.sub, async (tx) => {
+      const [row] = await tx.query<{ id: string }>("insert into ml_announcements (organization_id, title, body) values ($1, 'PDF', '') returning id", [a.id]);
+      return row.id;
+    });
+    await expect(db.asUser(a.staff.sub, (tx) => lockAnnouncement(tx, { organizationId: a.id, userId: a.staff.id, announcementId: id, today }))).rejects.toThrow(/teksti tai liitä PDF/);
+    await db.asUser(a.staff.sub, (tx) => saveAttachment(tx, { organizationId: a.id, userId: a.staff.id, announcementId: id, filename: "hinnat 2026.pdf", bytes }));
+    const att = await db.asUser(a.staff.sub, (tx) => getAttachment(tx, a.id, id));
+    expect(att).toMatchObject({ filename: "hinnat 2026.pdf", pages: 1 });
+    expect(Buffer.from(att!.data).equals(Buffer.from(bytes))).toBe(true);
+    await db.asUser(a.staff.sub, (tx) => lockAnnouncement(tx, { organizationId: a.id, userId: a.staff.id, announcementId: id, today }));
+    const other = await db.asUser(b.staff.sub, (tx) => tx.query("select 1 from ml_announcement_attachments"));
+    expect(other).toHaveLength(0);
+  });
+});

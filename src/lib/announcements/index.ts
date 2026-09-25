@@ -3,6 +3,7 @@ import { audit } from "@/lib/audit";
 import { EmailError, type EmailSender } from "@/lib/email";
 import { LetterServiceError, type LetterJob, type LetterSender } from "@/lib/letters";
 import { buildLettersPdf } from "./letter";
+import { getAttachment } from "./attachment";
 
 /**
  * Tiedotteet asiakkaille. Toimitus ensisijaisesti sähköpostilla; ilman
@@ -89,6 +90,11 @@ export async function lockAnnouncement(tx: Sql, input: { organizationId: string;
   if (a.status !== "draft") throw new AnnouncementError("Tiedotteen vastaanottajat on jo lukittu.");
   const recipients = await findRecipients(tx, input.organizationId, a, input.today);
   if (!recipients.length) throw new AnnouncementError("Rajauksella ei löytynyt vastaanottajia.");
+  const [content] = await tx.query<{ body: string; has_pdf: boolean }>(
+    "select a.body, exists (select 1 from ml_announcement_attachments t where t.announcement_id = a.id) as has_pdf from ml_announcements a where a.id = $1",
+    [input.announcementId],
+  );
+  if (!content.body.trim() && !content.has_pdf) throw new AnnouncementError("Kirjoita tiedotteen teksti tai liitä PDF ennen lähetystä.");
   await tx.query(
     `insert into ml_announcement_recipients (organization_id, announcement_id, customer_id, channel, name, email, address_lines, status)
      select $1, $2, x.customer_id, x.channel, x.name, x.email, array(select json_array_elements_text(x.address_lines)),
@@ -127,10 +133,13 @@ export function signature(org: OrgContact): string[] {
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Sähköposti: kappaleet tyhjän rivin kohdalta, ei ulkoisia kuvia eikä seurantaa. */
-export function composeEmail(a: { title: string; body: string }, org: OrgContact) {
+export function composeEmail(a: { title: string; body: string }, org: OrgContact, attachmentName?: string | null) {
   const sig = signature(org);
-  const text = `${a.body.trim()}\n\n${sig.join("\n")}\n`;
-  const paragraphs = a.body.trim().split(/\n\s*\n/).map((p) => `<p style="margin:0 0 14px">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`);
+  // PDF-tiedotteessa teksti voi puuttua: kerrotaan, että tiedote on liitteenä.
+  const body = a.body.trim() || (attachmentName ? "Tiedote on tämän viestin liitteenä (PDF)." : "");
+  const note = attachmentName && a.body.trim() ? `\n\nLiite: ${attachmentName}` : "";
+  const text = `${body}${note}\n\n${sig.join("\n")}\n`;
+  const paragraphs = `${body}${note}`.split(/\n\s*\n/).map((p) => `<p style="margin:0 0 14px">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`);
   const html = `<!doctype html><html lang="fi"><body style="margin:0;padding:24px;background:#f5f7fa;font-family:Arial,Helvetica,sans-serif;color:#1f2937">
 <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:28px">
 <h1 style="font-size:20px;margin:0 0 18px">${escapeHtml(a.title)}</h1>
@@ -166,14 +175,15 @@ export async function sendEmailBatch(
         returning id, email`,
       [input.announcementId, input.organizationId, input.batch ?? 40],
     );
-    return { a, rows };
+    return { a, rows, attachment: rows.length ? await getAttachment(tx, input.organizationId, input.announcementId) : null };
   });
 
-  const message = composeEmail(claimed.a, claimed.a);
+  const message = composeEmail(claimed.a, claimed.a, claimed.attachment?.filename);
+  const attachments = claimed.attachment ? [{ filename: claimed.attachment.filename, content: claimed.attachment.data }] : undefined;
   const results: { id: string; ok: boolean; error: string | null }[] = [];
   for (const r of claimed.rows) {
     try {
-      await sender.send({ ...message, to: r.email, fromName: claimed.a.name, replyTo: claimed.a.contact_email });
+      await sender.send({ ...message, to: r.email, fromName: claimed.a.name, replyTo: claimed.a.contact_email, attachments });
       results.push({ id: r.id, ok: true, error: null });
     } catch (err) {
       results.push({ id: r.id, ok: false, error: err instanceof EmailError ? err.message : "Lähetys epäonnistui." });
@@ -249,12 +259,14 @@ export async function uploadLetters(
       [input.announcementId, input.organizationId],
     );
     if (!rows.length) throw new AnnouncementError("Ei lähetettäviä kirjeitä.");
-    return { a, rows: rows.sort((x, y) => x.name.localeCompare(y.name, "fi")) };
+    return { a, rows: rows.sort((x, y) => x.name.localeCompare(y.name, "fi")), attachment: await getAttachment(tx, input.organizationId, input.announcementId) };
   });
 
   let job: LetterJob;
   try {
-    const { pdf, pagesPerLetter } = await buildLettersPdf(claimed.a, claimed.a, claimed.rows, { date: input.date });
+    const { pdf, pagesPerLetter } = await buildLettersPdf(claimed.a, claimed.a, claimed.rows, { date: input.date, attachment: claimed.attachment?.data });
+    // Postita tulostaa enintään 12 sivua kirjettä kohden.
+    if (pagesPerLetter > 12) throw new AnnouncementError(`Kirjeessä on ${pagesPerLetter} sivua, Postitan enimmäismäärä on 12. Lyhennä tekstiä tai PDF:ää.`);
     job = await sender.upload({ jobName: `${claimed.a.name}: ${claimed.a.title}`.slice(0, 200), pdf, pagesPerLetter, letters: claimed.rows.length, postClass: input.postClass });
   } catch (err) {
     await run((tx) => tx.query("update ml_announcement_recipients set status = 'pending' where id = any($1::uuid[])", [claimed.rows.map((r) => r.id)]));

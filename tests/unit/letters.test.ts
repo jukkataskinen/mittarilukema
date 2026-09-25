@@ -28,3 +28,17 @@ describe("Postita", () => {
     expect(() => letterSender()).toThrow(/tunnukset puuttuvat/);
   });
 });
+
+describe("sähköpostin liite", () => {
+  it("välitetään Resendille base64-muodossa", async () => {
+    vi.stubEnv("EMAIL_MODE", "resend");
+    vi.stubEnv("RESEND_API_KEY", "k");
+    vi.stubEnv("EMAIL_FROM", "tiedotteet@example.fi");
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: "x" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { emailSender } = await import("@/lib/email");
+    await emailSender().send({ to: "a@example.fi", subject: "S", text: "t", html: "h", fromName: "Org", attachments: [{ filename: "tiedote.pdf", content: new Uint8Array([1, 2, 3]) }] });
+    const body = JSON.parse(String((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(body.attachments).toEqual([{ filename: "tiedote.pdf", content: "AQID" }]);
+  });
+});
