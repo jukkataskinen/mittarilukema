@@ -22,6 +22,7 @@ const TABLES = [
   "ml_tariffs",
   "ml_property_charges",
   "ml_property_loans",
+  "ml_legacy_billed_estimates",
 ];
 // Laskutusajon taulut testataan tiedostossa billing-run.test.ts.
 
@@ -53,6 +54,10 @@ beforeAll(async () => {
       );
       await tx.query(
         "insert into ml_property_loans (organization_id, property_id, balance_eur, balance_date, monthly_amortization_eur) values ($1, $2, 1000, '2026-08-31', 50)",
+        [org.id, org.property],
+      );
+      await tx.query(
+        "insert into ml_legacy_billed_estimates (organization_id, property_id, month, connection_kind, m3, net_eur, gross_eur, source) values ($1, $2, '2026-01-01', 'water', 2, 4.1, 5.14, 'invoice')",
         [org.id, org.property],
       );
     }

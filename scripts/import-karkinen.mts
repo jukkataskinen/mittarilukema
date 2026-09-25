@@ -14,8 +14,8 @@ import { normalizePhone } from "../src/lib/validation/phone.ts";
  * laskutettava sopimus. Jos sama numero on listalla kahdesti eri maksajalla,
  * jälkimmäisen asiakasnumero on muotoa "39-2". Maksulajit:
  *   30 Perusmaksu            hinnasto, jätevesiliittymän perusmaksuluokka okt
- *   31 Perusmaksu 2          kiinteistön maksu, etäluettavien mittarien hankinta, listan kuukaudesta alkaen
- *                            (ei tammi-, maalis- eikä toukokuun 2026 laskuilla)
+ *   31 Perusmaksu 2          kiinteistön maksu, etäluettavien mittarien hankinta, 1.8.2026 alkaen
+ *                            (ensimmäisen kerran elokuun 2026 laskuilla)
  *   34/35 Vesi/Jätevesi arvio liittymät ja kuukausiarvio (estimated_annual_m3 = 12 × kk)
  *   40 Liittymän lisämaksu   kiinteistön maksu, alv 0
  *   50 Jäsenmaksu            kertamaksu listan kuukaudelle, alv 0
@@ -36,6 +36,8 @@ const START = "2026-01-01";
 // Hinnat ennen korotusta 27.2.2026 (laskut 10/2025–1/2026 ja vuoden 2025 tasaus), verollisia.
 const PRICES_2025 = { basic: 44.67, water: 2.23, wastewater: 2.85 };
 const PRICE_CHANGE = "2026-02-27";
+// Perusmaksu 2 (etäluettavat mittarit) on ensimmäisen kerran elokuun 2026 laskuilla, ei kesäkuun.
+const PERUSMAKSU2_FROM = "2026-08-01";
 
 type Row = { koodi: string; laji: string; maara: number | null; yks: string | null; hinta: number | null; alv: number; summa: number | null };
 type Point = { kulutuspiste: string; osoite: string | null; paikkakunta: string | null; postinumero: string | null; huom: string | null; nimi: string | null; email: string | null; puhelin: string | null; puhelin2: string | null };
@@ -156,7 +158,7 @@ try {
       // Kiinteistön omat maksut.
       const charges: { name: string; unit: "month" | "once"; price: number; vat: number; from: string; code: string }[] = [];
       for (const [i, r] of codes("30").entries()) if (i > 0) charges.push({ name: "Perusmaksu", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: START, code: "30" });
-      for (const r of codes("31")) charges.push({ name: "Perusmaksu 2 (etäluettavat mittarit)", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: periodMonth, code: "31" });
+      for (const r of codes("31")) charges.push({ name: "Perusmaksu 2 (etäluettavat mittarit)", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: PERUSMAKSU2_FROM, code: "31" });
       for (const r of codes("40")) charges.push({ name: "Liittymän lisämaksu", unit: "month", price: r.hinta ?? 0, vat: 0, from: START, code: "40" });
       for (const r of codes("50")) charges.push({ name: "Jäsenmaksu", unit: "once", price: r.hinta ?? 0, vat: 0, from: periodMonth, code: "50" });
       for (const c of charges.filter((x) => x.price > 0)) {

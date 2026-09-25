@@ -36,7 +36,13 @@ def parse_page(page, stats):
         rows[round(w[1] / 2)].append(w)
     text = page.get_text()
     ref = re.search(r"86210\s*70000\s*(\d{5})", text)
-    inv = {"osoiterivi": None, "viite": ref.group(1) if ref else None, "paiva": None, "erapaiva": None, "rivit": [], "yhteensa": None}
+    inv = {"osoiterivi": None, "vastaanottaja": None, "viite": ref.group(1) if ref else None, "paiva": None, "erapaiva": None, "rivit": [], "yhteensa": None}
+    # Vastaanottajan nimi osoitekentän ensimmäiseltä riviltä (y≈95–120; ylempänä on lähettäjä),
+    # jolla ratkaistaan saman tai lähes saman osoitteen kiinteistöt.
+    cand = [w for w in page.get_text("words") if 95 < w[1] < 120 and w[0] < 330]
+    if cand:
+        first_y = min(w[1] for w in cand)
+        inv["vastaanottaja"] = " ".join(w[4] for w in sorted((w for w in cand if abs(w[1] - first_y) < 3), key=lambda w: w[0]))
     for key in sorted(rows):
         ws = sorted(rows[key], key=lambda w: w[0])
         words = [w[4] for w in ws]

@@ -85,7 +85,8 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Kärkisen rekisteri, hinnasto, kiinteistön maksut ja lainaosuudet ennakkolistasta (0014): syyskuun 2026 arviolaskut täsmäävät listaan 160/160 (`npm run karkinen:tuo`, `npm run karkinen:vertaa`)
 - [x] Kärkisen asiakastiedot: laskutusosoitteet, verkkolaskuosoitteet ja sopimusten alkupäivät rekistereistä (`npm run karkinen:taydenna`)
 - [x] Kärkisen tasaus vanhan järjestelmän mallin mukaan, hintahistoria, mittarit ja lukemat vuoden 2025 tasauslaskuilta; tasauslaskut täsmäävät 56/57
-- [ ] Kärkisen tammi–elokuun 2026 vanhassa järjestelmässä laskutetut arviot tasausta varten (BLOCKERS 10)
+- [x] Kärkisen tammi–syyskuun 2026 vanhassa järjestelmässä laskutetut arviot tasausta varten (0019, `npm run karkinen:arviot`)
+- [ ] Kärkisen loka–joulukuun 2026 arviot (vanha järjestelmä vai Mittarilukema)
 - [~] Laskujen vienti Fennoaan: toteutettu (laskukanava pakollinen, takaisinluku ja tarkistus), testattu testitilassa; testiympäristön tunnukset odottavat (BLOCKERS 13)
 
 ### Tiedotteet

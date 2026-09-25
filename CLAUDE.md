@@ -55,7 +55,7 @@ src/lib/email/            sähköpostin lähetys (mock / Resend)
 src/lib/letters/          kirjeiden postitus (mock / Postita)
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0018 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0019 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu
@@ -78,7 +78,9 @@ npm run karkinen:tuo -- [--luo] [--korvaa] [--kuiva] [--tuotanto]
 npm run karkinen:taydenna [-- --kuiva] [--tuotanto]     laskutusosoitteet, verkkolasku, sopimusten alut
 npm run karkinen:vertaa [-- --tallenna] [--tuotanto]   arviolaskut ennakkolistaa vasten
 python scripts/karkinen/parse_invoices.py <lasku.pdf> ...  vanhat laskut → data/private/karkinen/laskut
-npm run karkinen:lukemat [-- --kuiva] [--tuotanto]      mittarit ja lukemat tasauslaskuilta
+python scripts/karkinen/parse_readings.py <lukemat.xlsx>  mittarilukemataulukko → data/private/karkinen/lukemat.json
+npm run karkinen:lukemat [-- --kuiva] [--tuotanto]      mittarit ja lukemat tasauslaskuilta ja lukemataulukosta
+npm run karkinen:arviot [-- --kuiva] [--tuotanto]       vanhassa järjestelmässä laskutetut arviot tasausta varten
 npm run karkinen:vertaa-tasaus [-- --tuotanto]          vuoden 2025 tasauslaskut uudelleen laskettuina
 npm run karkinen:vertaa-kk -- --tiedosto <laskut.json>  arviolaskutusajo vanhoja kuukausilaskuja vasten
 npm run laskutus:poista-hyvaksytty -- --ajo <tunnus> --syy "..." [--kuiva] [--tuotanto]   virheellisesti hyväksytty ajo pois

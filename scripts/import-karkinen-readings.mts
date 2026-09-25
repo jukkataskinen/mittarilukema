@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { openTargetDb } from "./lib/target-db.mts";
 import { loadOldInvoices, propertyMatcher } from "./lib/karkinen-invoices.mts";
 
@@ -23,6 +24,8 @@ const file = args.includes("--tiedosto") ? args[args.indexOf("--tiedosto") + 1] 
 const dryRun = args.includes("--kuiva");
 const dayBefore = (iso: string) => new Date(Date.parse(`${iso}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 
+const SHEET = "data/private/karkinen/lukemat.json";
+const sheetStats = { meters: 0, readings: 0, confirmed: 0, differs: 0, existing: 0, unmatched: 0, noReading: 0, noConnection: 0 };
 const invoices = await loadOldInvoices(file);
 const stats = { invoices: invoices.length, matched: 0, ambiguous: 0, unmatched: 0, noReadings: 0, existing: 0, meters: 0, readings: 0, qtyMismatch: 0, noConnection: 0, laterConnection: 0 };
 const db = await openTargetDb(args);
@@ -96,8 +99,67 @@ try {
         stats.readings += 2;
       }
     }
+    // Mittarilukemataulukko (scripts/karkinen/parse_readings.py): tasauslaskun mittarille vain
+    // tarkistus, muille kiinteistöille mittari edellisellä ja uudella lukemalla.
+    let sheet: { osoite: string; nimi: string | null; edellinen_pvm: string | null; edellinen: number | null; uusi_pvm: string | null; uusi: number | null }[] = [];
+    try {
+      sheet = (JSON.parse(await readFile(SHEET, "utf8")) as { lukemat: typeof sheet }).lukemat;
+    } catch {
+      // Taulukko ei ole pakollinen.
+    }
+    for (const row of sheet) {
+      if (row.edellinen === null || !row.edellinen_pvm) {
+        sheetStats.noReading++;
+        continue;
+      }
+      const p = match({ osoiterivi: row.osoite, vastaanottaja: row.nimi, viite: null, paiva: null, erapaiva: null, rivit: [], yhteensa: null });
+      if (!p || p === "ambiguous") {
+        sheetStats.unmatched++;
+        continue;
+      }
+      const existing = await tx.query<{ id: string; last: string | null }>(
+        `select m.id, (select r.reading::text from ml_readings r where r.meter_id = m.id order by r.read_on desc limit 1) as last
+           from ml_meters m join ml_connections c on c.id = m.connection_id where c.property_id = $1 and m.legacy_id like 'tasaus-%'`,
+        [p.id],
+      );
+      if (existing.length) {
+        if (row.uusi !== null && existing.every((m) => Number(m.last) !== row.uusi)) sheetStats.differs++;
+        else sheetStats.confirmed++;
+        continue;
+      }
+      if ((await tx.query("select 1 from ml_meters m join ml_connections c on c.id = m.connection_id where c.property_id = $1 and m.legacy_id = 'lukemat-1'", [p.id])).length) {
+        sheetStats.existing++;
+        continue;
+      }
+      await tx.query("update ml_connections set connected_on = least(connected_on, $2::date) where property_id = $1", [p.id, row.edellinen_pvm]);
+      const [conn] = await tx.query<{ id: string }>(
+        "select id from ml_connections where property_id = $1 and disconnected_on is null order by (kind = 'water') desc limit 1",
+        [p.id],
+      );
+      if (!conn) {
+        sheetStats.noConnection++;
+        continue;
+      }
+      const [meter] = await tx.query<{ id: string }>(
+        `insert into ml_meters (organization_id, connection_id, read_method, installed_on, start_reading, notes, legacy_id)
+         values ($1, $2, 'mechanical', $3, $4, 'Lukemat Kärkisen mittarilukemataulukosta. Mittarinumero ei tiedossa.', 'lukemat-1') returning id`,
+        [org.id, conn.id, row.edellinen_pvm, row.edellinen],
+      );
+      await tx.query("insert into ml_readings (organization_id, meter_id, read_on, reading, source, note) values ($1, $2, $3, $4, 'import', 'Mittarilukemataulukko')", [
+        org.id, meter.id, row.edellinen_pvm, row.edellinen,
+      ]);
+      sheetStats.readings++;
+      if (row.uusi !== null && row.uusi_pvm && row.uusi_pvm > row.edellinen_pvm) {
+        await tx.query("insert into ml_readings (organization_id, meter_id, read_on, reading, source, note) values ($1, $2, $3, $4, 'import', 'Mittarilukemataulukko')", [
+          org.id, meter.id, row.uusi_pvm, row.uusi,
+        ]);
+        sheetStats.readings++;
+      }
+      sheetStats.meters++;
+    }
+
     await tx.query("insert into ml_audit_log (organization_id, action, entity, details) values ($1, 'import.karkinen_readings', 'ml_meters', $2)", [
-      org.id, JSON.stringify(stats),
+      org.id, JSON.stringify({ ...stats, sheet: sheetStats }),
     ]);
     if (dryRun) throw new Error("__kuiva__");
   });
@@ -117,3 +179,7 @@ console.log(`Laskuja ${stats.invoices}: yhdistetty ${stats.matched}, sama osoite
 console.log(`Mittareita ${stats.meters}, lukemia ${stats.readings}, jo tuotu ${stats.existing}. Ilman lukemia ${stats.noReadings}, ilman liittymää ${stats.noConnection}.`);
 if (stats.laterConnection) console.log(`Liittymä alkanut vasta jakson jälkeen (ei laskulla): ${stats.laterConnection}.`);
 if (stats.qtyMismatch) console.log(`Laskun kulutus eroaa lukemien erotuksesta: ${stats.qtyMismatch}.`);
+console.log(
+  `Lukemataulukko: uusia mittareita ${sheetStats.meters} (lukemia ${sheetStats.readings}), tasauslaskun lukema vahvistui ${sheetStats.confirmed}, ` +
+    `eroaa ${sheetStats.differs}, jo tuotu ${sheetStats.existing}, ei kiinteistöä ${sheetStats.unmatched}, ilman lukemaa ${sheetStats.noReading}.`,
+);

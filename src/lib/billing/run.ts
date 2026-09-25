@@ -65,22 +65,37 @@ export async function createBillingRun(
   );
   // Tasaus: jaksolla hyväksytyillä arviolaskuilla jo laskutettu kulutus ja summa kiinteistöittäin ja liittymälajeittain.
   const billedEstimates = new Map<string, Partial<Record<ConnectionKind, BilledEstimate>>>();
+  const reviewEstimates = new Set<string>();
   if (kind === "settlement") {
-    const rows = await tx.query<{ property_id: string; connection_kind: ConnectionKind; m3: string; net: string; gross: string }>(
-      `select i.property_id, l.connection_kind, sum(l.quantity)::text as m3, sum(l.net_eur)::text as net,
-              sum(l.net_eur + coalesce(l.vat_eur, round(l.net_eur * l.vat_percent / 100, 2)))::text as gross
-         from ml_invoice_lines l
-         join ml_invoices i on i.id = l.invoice_id
-         join ml_billing_runs r on r.id = i.run_id
-        where r.organization_id = $1 and r.kind = 'estimate' and r.status = 'approved' and i.status <> 'excluded'
-          and i.period_start >= $2 and i.period_end <= $3 and l.kind = 'usage' and l.connection_kind is not null
-        group by i.property_id, l.connection_kind`,
+    // Hyväksytyt Mittarilukeman arviolaskut ja vanhassa järjestelmässä laskutetut arviot (0019).
+    // Vanhan järjestelmän kuukautta ei lasketa, jos samalle kuukaudelle on hyväksytty arviolasku.
+    const rows = await tx.query<{ property_id: string; connection_kind: ConnectionKind; m3: string; net: string; gross: string; review: number }>(
+      `select property_id, connection_kind, sum(m3)::text as m3, sum(net)::text as net, sum(gross)::text as gross, sum(review)::int as review
+         from (
+           select i.property_id, l.connection_kind, l.quantity as m3, l.net_eur as net,
+                  l.net_eur + coalesce(l.vat_eur, round(l.net_eur * l.vat_percent / 100, 2)) as gross, 0 as review
+             from ml_invoice_lines l
+             join ml_invoices i on i.id = l.invoice_id
+             join ml_billing_runs r on r.id = i.run_id
+            where r.organization_id = $1 and r.kind = 'estimate' and r.status = 'approved' and i.status <> 'excluded'
+              and i.period_start >= $2 and i.period_end <= $3 and l.kind = 'usage' and l.connection_kind is not null
+           union all
+           select e.property_id, e.connection_kind, e.m3, e.net_eur, e.gross_eur, case when e.needs_review then 1 else 0 end
+             from ml_legacy_billed_estimates e
+            where e.organization_id = $1 and e.month > $2 and e.month <= $3
+              and not exists (
+                select 1 from ml_invoices i join ml_billing_runs r on r.id = i.run_id
+                 where r.kind = 'estimate' and r.status = 'approved' and i.status <> 'excluded' and i.property_id = e.property_id
+                   and i.period_start < e.month and i.period_end >= (e.month + interval '1 month' - interval '1 day')::date)
+         ) x
+        group by property_id, connection_kind`,
       [orgId, start, end],
     );
     for (const r of rows) {
       const m = billedEstimates.get(r.property_id) ?? {};
       m[r.connection_kind] = { m3: Number(r.m3), net: Number(r.net), gross: Number(r.gross) };
       billedEstimates.set(r.property_id, m);
+      if (r.review) reviewEstimates.add(r.property_id);
     }
   }
   const byProperty = new Map<string, typeof contracts>();
@@ -173,6 +188,9 @@ export async function createBillingRun(
     if (!payer) issues.push("Laskutettava sopimus puuttuu jakson lopussa.");
     if (kind === "estimate" && annual === null && activeConn) issues.push("Vuosikulutusarvio puuttuu: lukemia alle puolelta vuodelta eikä kiinteistölle ole annettu arviota.");
     if (kind === "settlement" && billedEstimate === 0) issues.push("Tasausjaksolta ei löytynyt hyväksyttyjä arviolaskuja.");
+    if (kind === "settlement" && reviewEstimates.has(p.propertyId)) {
+      issues.push("Osa vanhan järjestelmän arvioista on päätelty epävarmasti (kuukausi ilman laskua). Tarkista arviot ennen tasausta.");
+    }
     if (new Set(cs.map((c) => c.customer_id)).size > 1) {
       issues.push("Maksaja vaihtunut jaksolla, eikä vaihtopäivältä ole lukemaa: laskua ei voitu jakaa. Kirjaa vaihtopäivän lukema ja laske uudelleen.");
     }

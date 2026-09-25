@@ -67,3 +67,31 @@ describe("arviolaskutus ja tasaus", () => {
     expect(r.invoices).toBe(1);
   });
 });
+
+describe("vanhassa järjestelmässä laskutetut arviot tasauksessa", () => {
+  it("vähennetään kuukausittain, hyväksytyn arviolaskun kuukautta ei lasketa kahdesti ja epävarmasta tulee huomautus", async () => {
+    await db.asService(async (tx) => {
+      const [conn] = await tx.query<{ property_id: string }>("select property_id from ml_connections where id = $1", [a.connection]);
+      await tx.query(
+        `insert into ml_legacy_billed_estimates (organization_id, property_id, month, connection_kind, m3, net_eur, gross_eur, source, needs_review) values
+           ($1, $2, '2026-08-01', 'water', 10, 15, 18.83, 'invoice', false),
+           ($1, $2, '2026-09-01', 'water', 10, 15, 18.83, 'inferred', true),
+           ($1, $2, '2026-10-01', 'water', 10, 15, 18.83, 'invoice', false)`,
+        [a.id, conn.property_id],
+      );
+    });
+    const r = await db.asUser(a.staff.sub, (tx) =>
+      createBillingRun(tx, { organizationId: a.id, userId: a.staff.id, periodStart: "2026-07-31", periodEnd: "2026-10-31", kind: "settlement" }),
+    );
+    const lines = await db.asUser(a.staff.sub, (tx) =>
+      tx.query<{ description: string; quantity: string }>(
+        "select l.description, l.quantity::text from ml_invoice_lines l join ml_invoices i on i.id = l.invoice_id where i.run_id = $1 order by l.line_no",
+        [r.runId],
+      ),
+    );
+    // Elo ja syys vanhasta järjestelmästä, loka hyväksytystä arviolaskusta (vanhan järjestelmän lokakuu ohitetaan).
+    expect(lines.find((l) => l.description === "Vesi arvio")?.quantity).toBe("-30.000");
+    const [inv] = await db.asUser(a.staff.sub, (tx) => tx.query<{ issues: string[] }>("select issues from ml_invoices where run_id = $1", [r.runId]));
+    expect(inv.issues.join()).toMatch(/päätelty epävarmasti/);
+  });
+});
