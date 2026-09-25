@@ -19,8 +19,11 @@
  * - Lisäperusmaksu ja lainaosuus kuukausittain, jos niille on hinta (Kärkinen).
  *
  * Tilat: `actual` = toteutunut kulutus (Joutsa), `estimate` = arviolasku
- * annetulla arviokulutuksella, `settlement` = tasaus: todellinen kulutus
- * miinus arviolaskuilla laskutettu määrä, ilman perusmaksuja.
+ * annetulla arviokulutuksella, `settlement` = tasaus: toteutunut kulutus
+ * omina riveinään ("Kulutusmaksu vesi") ja arviolaskuilla laskutettu summa
+ * vähennyksenä ("Vesi arvio"), ilman perusmaksuja. Näin Kärkisen vanha
+ * järjestelmä teki vuoden 2025 tasauksen; vähennys on laskutettu euromäärä,
+ * joten kesken vuoden muuttunut hinta ei vääristä sitä.
  */
 
 export type ConnectionKind = "water" | "wastewater";
@@ -88,6 +91,12 @@ export interface PropertyLoan {
   finalMonth: string | null;
 }
 
+export interface BilledEstimate {
+  m3: number;
+  net: number;
+  gross: number;
+}
+
 export interface BillingInput {
   /** Edellinen lukemapäivä, esim. 2025-09-30. Ei kuulu jaksoon. */
   periodStart: string;
@@ -102,8 +111,8 @@ export interface BillingInput {
   mode?: "actual" | "estimate" | "settlement";
   /** estimate: jakson arvioitu kulutus m³. */
   estimateM3?: number;
-  /** settlement: arviolaskuilla jo laskutettu kulutus m³. */
-  billedEstimateM3?: number;
+  /** settlement: arviolaskuilla jo laskutettu kulutus liittymälajeittain (m³, veroton ja verollinen summa). */
+  billedEstimates?: Partial<Record<ConnectionKind, BilledEstimate>>;
   propertyCharges?: PropertyCharge[];
   loans?: PropertyLoan[];
 }
@@ -277,11 +286,13 @@ export function calculateBill(input: BillingInput): BillingResult {
   if (measuringKind && usage.length === 0) issues.push("Kiinteistöllä ei ole mittaria jaksolla.");
   }
   // Laskutettava määrä: arvio, toteutunut tai tasauksessa erotus (voi olla negatiivinen = hyvitys).
-  const billable =
-    mode === "estimate" ? round3(input.estimateM3 ?? 0) : mode === "settlement" ? round3(metered - (input.billedEstimateM3 ?? 0)) : round3(metered);
+  // Laskutettava määrä: arvio tai toteutunut (tasauksessa arviot vähennetään omilla riveillään).
+  const billable = mode === "estimate" ? round3(input.estimateM3 ?? 0) : round3(metered);
   const waterM3 = water ? billable : 0;
   const wastewaterM3 = waste ? billable : 0;
-  const suffix = mode === "estimate" ? ", arvio" : mode === "settlement" ? ", tasaus" : "";
+  const suffix = mode === "estimate" ? ", arvio" : "";
+  const usageLabel = (kind: ConnectionKind) =>
+    mode === "settlement" ? (kind === "water" ? "Kulutusmaksu vesi" : "Kulutusmaksu jätevesi") : `${kind === "water" ? "Vesi" : "Jätevesi"}${suffix}`;
 
   // Käyttömaksu: jaetaan päivien suhteessa, jos hinta muuttuu kesken jakson.
   const days = toDay(end) - toDay(start);
@@ -305,8 +316,26 @@ export function calculateBill(input: BillingInput): BillingResult {
       lines.push(makeLine({ kind: "usage", connectionKind: kind, description: label, unit: "m3" }, q, p.t.priceEur, p.t.vatPercent, p.t.priceIncludesVat));
     });
   };
-  if (water) usageLines("water", waterM3, `Vesi${suffix}`);
-  if (waste) usageLines("wastewater", wastewaterM3, `Jätevesi${suffix}`);
+  if (water) usageLines("water", waterM3, usageLabel("water"));
+  if (waste) usageLines("wastewater", wastewaterM3, usageLabel("wastewater"));
+
+  // Tasaus: arviolaskuilla laskutettu summa vähennetään sellaisenaan.
+  if (mode === "settlement") {
+    for (const c of [water, waste]) {
+      const billed = c ? input.billedEstimates?.[c.kind] : undefined;
+      if (!c || !billed || (billed.m3 === 0 && billed.gross === 0)) continue;
+      const t = tariffFor(input.tariffs, "usage_fee", c.kind, end, areaId, null);
+      const incl = t?.priceIncludesVat ?? false;
+      const vatPercent = t?.vatPercent ?? 0;
+      const amount = -(incl ? billed.gross : billed.net);
+      const net = incl ? round2((amount * 100) / (100 + vatPercent)) : round2(amount);
+      lines.push({
+        kind: "usage", connectionKind: c.kind, description: c.kind === "water" ? "Vesi arvio" : "Jätevesi arvio", unit: "m3",
+        quantity: -round3(billed.m3), unitPrice: billed.m3 ? roundTo(-amount / billed.m3, 10000) : 0, vatPercent, net,
+        vat: incl ? round2(amount - net) : (net * vatPercent) / 100, priceIncludesVat: incl,
+      });
+    }
+  }
 
   // --- Perusmaksut kuukausittain (ei tasauksessa: ne on laskutettu arviolaskuilla) ---
   for (const c of mode === "settlement" ? [] : [water, waste]) {

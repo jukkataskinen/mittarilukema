@@ -23,6 +23,9 @@
     "kayttaja:lisaa": "tsx --env-file-if-exists=.env.local scripts/add-user.mts",
     "karkinen:tuo": "tsx --env-file-if-exists=.env.local scripts/import-karkinen.mts",
     "karkinen:taydenna": "tsx --env-file-if-exists=.env.local scripts/enrich-karkinen.mts",
+    "karkinen:lukemat": "tsx --env-file-if-exists=.env.local scripts/import-karkinen-readings.mts",
+    "karkinen:vertaa-tasaus": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen-settlement.mts",
+    "karkinen:vertaa-kk": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen-monthly.mts",
     "karkinen:vertaa": "tsx --env-file-if-exists=.env.local scripts/compare-karkinen.mts"
   },
   "dependencies": {

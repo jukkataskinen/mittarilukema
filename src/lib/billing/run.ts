@@ -1,6 +1,6 @@
 import type { Sql } from "@/lib/db/types";
 import { audit } from "@/lib/audit";
-import { billingMonths, calculateBill, estimateAnnualM3 } from "./calculate";
+import { billingMonths, calculateBill, estimateAnnualM3, type BilledEstimate, type ConnectionKind } from "./calculate";
 import { loadOrgBillingData } from "./load";
 import { invoiceInfo } from "./info";
 
@@ -63,18 +63,25 @@ export async function createBillingRun(
       where organization_id = $1 and billed and starts_on <= $3 and (ends_on is null or ends_on > $2)`,
     [orgId, start, end],
   );
-  // Tasaus: jaksolla hyväksytyillä arviolaskuilla jo laskutettu kulutus kiinteistöittäin.
-  const billedEstimates = new Map<string, number>();
+  // Tasaus: jaksolla hyväksytyillä arviolaskuilla jo laskutettu kulutus ja summa kiinteistöittäin ja liittymälajeittain.
+  const billedEstimates = new Map<string, Partial<Record<ConnectionKind, BilledEstimate>>>();
   if (kind === "settlement") {
-    const rows = await tx.query<{ property_id: string; m3: string }>(
-      `select i.property_id, sum(greatest(i.water_m3, i.wastewater_m3))::text as m3
-         from ml_invoices i join ml_billing_runs r on r.id = i.run_id
+    const rows = await tx.query<{ property_id: string; connection_kind: ConnectionKind; m3: string; net: string; gross: string }>(
+      `select i.property_id, l.connection_kind, sum(l.quantity)::text as m3, sum(l.net_eur)::text as net,
+              sum(l.net_eur + coalesce(l.vat_eur, round(l.net_eur * l.vat_percent / 100, 2)))::text as gross
+         from ml_invoice_lines l
+         join ml_invoices i on i.id = l.invoice_id
+         join ml_billing_runs r on r.id = i.run_id
         where r.organization_id = $1 and r.kind = 'estimate' and r.status = 'approved' and i.status <> 'excluded'
-          and i.period_start >= $2 and i.period_end <= $3
-        group by i.property_id`,
+          and i.period_start >= $2 and i.period_end <= $3 and l.kind = 'usage' and l.connection_kind is not null
+        group by i.property_id, l.connection_kind`,
       [orgId, start, end],
     );
-    for (const r of rows) billedEstimates.set(r.property_id, Number(r.m3));
+    for (const r of rows) {
+      const m = billedEstimates.get(r.property_id) ?? {};
+      m[r.connection_kind] = { m3: Number(r.m3), net: Number(r.net), gross: Number(r.gross) };
+      billedEstimates.set(r.property_id, m);
+    }
   }
   const byProperty = new Map<string, typeof contracts>();
   for (const c of contracts) byProperty.set(c.property_id, [...(byProperty.get(c.property_id) ?? []), c]);
@@ -105,11 +112,12 @@ export async function createBillingRun(
     const annual = kind === "estimate" ? (history ?? p.estimatedAnnualM3) : null;
     const estimateSource = history !== null ? "history" : annual !== null ? "manual" : null;
     const months = billingMonths(start, end).length;
-    const billedEstimate = billedEstimates.get(p.propertyId) ?? 0;
+    const billed = billedEstimates.get(p.propertyId);
+    const billedEstimate = Math.max(billed?.water?.m3 ?? 0, billed?.wastewater?.m3 ?? 0);
     const calc = (s0: string, e0: string, windowDays?: number) =>
       calculateBill({
         periodStart: s0, periodEnd: e0, areaId: p.areaId, connections: p.connections, meters: p.meters, tariffs, readingWindowDays: windowDays,
-        mode: kind, estimateM3: annual !== null ? Math.round(((annual * months) / 12) * 1000) / 1000 : 0, billedEstimateM3: billedEstimate,
+        mode: kind, estimateM3: annual !== null ? Math.round(((annual * months) / 12) * 1000) / 1000 : 0, billedEstimates: billed,
         propertyCharges: p.charges, loans: p.loans,
       });
     const push = (row: Omit<InvoiceRow, "key" | "info">, res: ReturnType<typeof calculateBill>, partial: boolean) => {
@@ -121,7 +129,7 @@ export async function createBillingRun(
         kind === "estimate" && annual !== null
           ? `Arviolasku ${fi(addDay(row.period_start))} - ${fi(row.period_end)}: arvioitu vuosikulutus ${fmt3(annual)} m3 (${estimateSource === "history" ? "edellisen vuoden kulutus" : "annettu arvio"}), ${place}`
           : kind === "settlement"
-            ? `Tasaus: arviolaskuilla laskutettu ${fmt3(billedEstimate)} m3, toteutunut ${fmt3(Math.max(res.waterM3, res.wastewaterM3) + billedEstimate)} m3.`
+            ? `Tasaus ${fi(addDay(row.period_start))} - ${fi(row.period_end)}: toteutunut ${fmt3(Math.max(res.waterM3, res.wastewaterM3))} m3, arviolaskuilla laskutettu ${fmt3(billedEstimate)} m3.`
             : "";
       invoices.push({
         ...row, key, info: [periodNote, kindNote, readingInfo].filter(Boolean).join("\n") || null,

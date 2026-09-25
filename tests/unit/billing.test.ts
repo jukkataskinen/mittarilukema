@@ -229,10 +229,45 @@ describe("Kärkisen arviolasku", () => {
     const r = calculateBill(
       karkinen({
         mode: "settlement",
-        billedEstimateM3: 2,
+        billedEstimates: { wastewater: { m3: 2, net: 5.23, gross: 6.56 } },
         propertyCharges: [{ name: "Lisäperusmaksu", unit: "month", priceEur: 39, vatPercent: 25.5, priceIncludesVat: true, validFrom: "2026-01-01", validTo: null }],
       }),
     );
     expect(r.lines.some((l) => l.description === "Lisäperusmaksu")).toBe(false);
   });
 });
+
+describe("Kärkisen tasaus (vanhan järjestelmän lasku 2025)", () => {
+  const OLD: BillingTariff[] = [
+    t({ chargeType: "usage_fee", connectionKind: "water", priceEur: 2.23, validFrom: "2025-01-01", priceIncludesVat: true }),
+    t({ chargeType: "usage_fee", connectionKind: "wastewater", priceEur: 2.85, validFrom: "2025-01-01", priceIncludesVat: true }),
+  ];
+  it("toteutunut kulutus miinus laskutetut arviot euroina: 44,60 + 57,00 − 53,52 − 68,40 = −20,32", () => {
+    const r = calculateBill(
+      karkinen({
+        periodStart: "2024-12-31",
+        periodEnd: "2025-12-31",
+        mode: "settlement",
+        tariffs: OLD,
+        connections: [
+          { id: "w", kind: "water", feeClass: "none", connectedOn: "2014-01-01", disconnectedOn: null },
+          { id: "ww", kind: "wastewater", feeClass: "okt", connectedOn: "2014-01-01", disconnectedOn: null },
+        ],
+        meters: [{ id: "m", connectionId: "w", installedOn: "2024-12-31", startReading: 893, removedOn: null, finalReading: null, multiplier: 1,
+          readings: [{ readOn: "2024-12-31", reading: 893 }, { readOn: "2025-12-31", reading: 913 }] }],
+        billedEstimates: { water: { m3: 24, net: 42.65, gross: 53.52 }, wastewater: { m3: 24, net: 54.5, gross: 68.4 } },
+      }),
+    );
+    expect(r.lines.map((l) => [l.description, l.quantity, round(l.net + l.vat)])).toEqual([
+      ["Kulutusmaksu vesi", 20, 44.6],
+      ["Kulutusmaksu jätevesi", 20, 57],
+      ["Vesi arvio", -24, -53.52],
+      ["Jätevesi arvio", -24, -68.4],
+    ]);
+    expect([r.net, r.vat, r.gross]).toEqual([-16.19, -4.13, -20.32]);
+  });
+});
+
+function round(n: number) {
+  return Math.round(n * 100) / 100;
+}

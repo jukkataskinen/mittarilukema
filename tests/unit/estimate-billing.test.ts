@@ -46,14 +46,25 @@ describe("arviolasku", () => {
 });
 
 describe("tasaus", () => {
-  it("toteutunut miinus laskutettu, ei perusmaksuja", () => {
-    const r = calculateBill({ ...base, periodStart: "2025-09-30", periodEnd: "2026-09-30", mode: "settlement", billedEstimateM3: 100 });
-    expect(r.lines.map((l) => [l.description, l.quantity, l.net])).toEqual([["Vesi, tasaus", 20, 30]]);
+  const billed = (m3: number) => ({ water: { m3, net: m3 * 1.5, gross: m3 * 1.5 * 1.255 } });
+  it("toteutunut kulutus ja laskutettu arvio omilla riveillään, ei perusmaksuja", () => {
+    const r = calculateBill({ ...base, periodStart: "2025-09-30", periodEnd: "2026-09-30", mode: "settlement", billedEstimates: billed(100) });
+    expect(r.lines.map((l) => [l.description, l.quantity, l.net])).toEqual([
+      ["Kulutusmaksu vesi", 120, 180],
+      ["Vesi arvio", -100, -150],
+    ]);
+    expect(r.net).toBe(30);
   });
   it("liikaa laskutettu hyvitetään", () => {
-    const r = calculateBill({ ...base, periodStart: "2025-09-30", periodEnd: "2026-09-30", mode: "settlement", billedEstimateM3: 130 });
-    expect(r.lines.map((l) => [l.description, l.quantity, l.net])).toEqual([["Vesi, tasaus", -10, -15]]);
+    const r = calculateBill({ ...base, periodStart: "2025-09-30", periodEnd: "2026-09-30", mode: "settlement", billedEstimates: billed(130) });
     expect(r.net).toBe(-15);
+  });
+  it("vähennys on laskutettu summa, vaikka hinta on muuttunut", () => {
+    // Arviot laskutettu osin vanhalla hinnalla: 100 m³, 140 € veroton.
+    const r = calculateBill({
+      ...base, periodStart: "2025-09-30", periodEnd: "2026-09-30", mode: "settlement", billedEstimates: { water: { m3: 100, net: 140, gross: 175.7 } },
+    });
+    expect(r.lines.at(-1)).toMatchObject({ description: "Vesi arvio", quantity: -100, unitPrice: 1.4, net: -140 });
   });
 });
 

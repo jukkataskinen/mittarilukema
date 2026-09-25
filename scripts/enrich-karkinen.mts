@@ -13,6 +13,7 @@ import { normalizePhone } from "../src/lib/validation/phone.ts";
  *   - sähköposti ja puhelin, jos asiakkaalla ei vielä ole niitä
  *   - verkkolaskuosoite ja välittäjä
  *   - sopimuksen alkupäivä ja lisätiedot (lisähenkilö, sidoksen lisätiedot)
+ *   - liittymien alkupäivä: huoneiston varhaisimman sidoksen alkukuukausi
  * Voidaan ajaa uudelleen: muistiinpanot muodostetaan joka kerta alusta.
  * Tuloste näyttää vain määrät.
  */
@@ -25,14 +26,14 @@ type Person = { email: string | null; puhelin: string | null; katu: string | nul
 type Bond = { alku: string | null; loppu: string | null; lisahenkilo: string | null; lisatiedot: string | null };
 type Unit = {
   tunnus: string;
-  rekisteri?: { maksajan_sidos: Bond | null; henkilo: Person | null; verkkolasku: { osoite: string; valittaja: string; suoramaksu: boolean } | null };
+  rekisteri?: { sidokset: Bond[]; maksajan_sidos: Bond | null; henkilo: Person | null; verkkolasku: { osoite: string; valittaja: string; suoramaksu: boolean } | null };
 };
 const data = JSON.parse(await readFile("data/private/karkinen/karkinen.json", "utf8")) as { jakso: string; huoneistot: Unit[] };
 const year = Number(data.jakso.slice(0, 4));
 const month = Number(data.jakso.slice(4, 6));
 const periodEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
 
-const stats = { units: 0, noCustomer: 0, address: 0, email: 0, phone: 0, einvoice: 0, startDate: 0, lateStart: 0, contractNotes: 0, customerNotes: 0 };
+const stats = { connections: 0, units: 0, noCustomer: 0, address: 0, email: 0, phone: 0, einvoice: 0, startDate: 0, lateStart: 0, contractNotes: 0, customerNotes: 0 };
 const db = await openTargetDb(args);
 try {
   await db.asService(async (tx) => {
@@ -82,6 +83,19 @@ try {
         [org.id, customer.id, start, contractNotes],
       );
       if (start) stats.startDate++;
+
+      // Liittymä on ollut olemassa viimeistään huoneiston ensimmäisen sidoksen alkaessa.
+      // Kuukauden alku, jotta sen kuukauden perusmaksu kuuluu laskulle.
+      const first = reg.sidokset.map((x) => x.alku).filter((x): x is string => !!x).sort()[0];
+      if (first) {
+        const rows = await tx.query(
+          `update ml_connections c set connected_on = date_trunc('month', $3::date)::date
+             from ml_contracts k where k.organization_id = $1 and k.customer_id = $2 and c.property_id = k.property_id
+           returning c.id`,
+          [org.id, customer.id, first],
+        );
+        stats.connections += rows.length;
+      }
       if (contractNotes) stats.contractNotes++;
     }
     await tx.query("insert into ml_audit_log (organization_id, action, entity, details) values ($1, 'import.karkinen_registry', 'ml_customers', $2)", [
@@ -103,4 +117,5 @@ try {
 
 console.log(`Huoneistoja ${stats.units}, asiakasta ei löytynyt ${stats.noCustomer}.`);
 console.log(`Laskutusosoite ${stats.address}, uusi sähköposti ${stats.email}, uusi puhelin ${stats.phone}, verkkolaskuosoite ${stats.einvoice}.`);
+console.log(`Liittymän alkupäivä sidoksista ${stats.connections}.`);
 console.log(`Sopimuksen alkupäivä ${stats.startDate} (jakson jälkeen alkavia ohitettu ${stats.lateStart}), sopimuksen lisätiedot ${stats.contractNotes}, asiakkaan lisätiedot ${stats.customerNotes}.`);

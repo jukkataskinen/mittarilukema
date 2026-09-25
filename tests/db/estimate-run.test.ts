@@ -55,9 +55,9 @@ describe("arviolaskutus ja tasaus", () => {
     const [inv] = await db.asUser(a.staff.sub, (tx) =>
       tx.query<{ water_m3: string; net_eur: string; issues: string[]; info: string }>("select water_m3::text, net_eur::text, issues, info from ml_invoices where run_id = $1", [r.runId]),
     );
-    // Toteutunut 15 m³, arviolla laskutettu 10 m³ → tasaus 5 m³ × 1,50 €.
-    expect(inv).toMatchObject({ water_m3: "5.000", net_eur: "7.50", issues: [] });
-    expect(inv.info).toMatch(/^Tasaus: arviolaskuilla laskutettu 10 m3, toteutunut 15 m3\./);
+    // Toteutunut 15 m³, arviolla laskutettu 10 m³ → 15 × 1,50 € − 15,00 € = 7,50 €.
+    expect(inv).toMatchObject({ water_m3: "15.000", net_eur: "7.50", issues: [] });
+    expect(inv.info).toMatch(/^Tasaus 1\.10\.2026 - 31\.10\.2026: toteutunut 15 m3, arviolaskuilla laskutettu 10 m3\./);
   });
 
   it("arviolasku ja toteutuneen laskun ajo samalle jaksolle ovat eri ajoja", async () => {

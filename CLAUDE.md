@@ -73,6 +73,10 @@ python scripts/karkinen/parse.py <kansio>    Kärkisen ennakkolista, käyttöpai
 npm run karkinen:tuo -- [--luo] [--korvaa] [--kuiva] [--tuotanto]
 npm run karkinen:taydenna [-- --kuiva] [--tuotanto]     laskutusosoitteet, verkkolasku, sopimusten alut
 npm run karkinen:vertaa [-- --tallenna] [--tuotanto]   arviolaskut ennakkolistaa vasten
+python scripts/karkinen/parse_invoices.py <lasku.pdf> ...  vanhat laskut → data/private/karkinen/laskut
+npm run karkinen:lukemat [-- --kuiva] [--tuotanto]      mittarit ja lukemat tasauslaskuilta
+npm run karkinen:vertaa-tasaus [-- --tuotanto]          vuoden 2025 tasauslaskut uudelleen laskettuina
+npm run karkinen:vertaa-kk -- --tiedosto <laskut.json>  arviolaskutusajo vanhoja kuukausilaskuja vasten
 npm run kayttaja:lisaa -- --email x --org "Nimi" --rooli owner [--luo-org actual|estimate] [--tuotanto]
 npm run lint && npm run typecheck && npm run test
 ```

@@ -10,17 +10,19 @@ import { normalizePhone } from "../src/lib/validation/phone.ts";
  *
  * Lähde: data/private/karkinen/karkinen.json. Jokaisesta ennakkolistan
  * huoneistosta tulee kiinteistö (property_code = huoneiston numero), asiakas
- * (asiakasnumero = huoneiston numero, josta viitenumero johdetaan) ja
+ * (asiakasnumero = huoneiston numero) ja
  * laskutettava sopimus. Jos sama numero on listalla kahdesti eri maksajalla,
  * jälkimmäisen asiakasnumero on muotoa "39-2". Maksulajit:
  *   30 Perusmaksu            hinnasto, jätevesiliittymän perusmaksuluokka okt
- *   31 Perusmaksu 2          kiinteistön maksu, etäluettavien mittarien hankinta (DECISIONS 25.9.2026)
+ *   31 Perusmaksu 2          kiinteistön maksu, etäluettavien mittarien hankinta, listan kuukaudesta alkaen
+ *                            (ei tammi-, maalis- eikä toukokuun 2026 laskuilla)
  *   34/35 Vesi/Jätevesi arvio liittymät ja kuukausiarvio (estimated_annual_m3 = 12 × kk)
  *   40 Liittymän lisämaksu   kiinteistön maksu, alv 0
  *   50 Jäsenmaksu            kertamaksu listan kuukaudelle, alv 0
  *   21/22 Lyhennys ja korko  lainaosuus Lainaosuudet-taulukon saldosta
  * Kaikki hinnat ovat verollisia. Toinen perusmaksu samalla huoneistolla
- * tuodaan kiinteistön maksuna.
+ * tuodaan kiinteistön maksuna. Hinnasto: listan hinnat 27.2.2026 alkaen
+ * (hallituksen päätös 15.1.2026), sitä ennen vuoden 2025 laskujen hinnat.
  *
  * Liittymis- ja sopimuspäivät eivät ole aineistossa: käytetään 1.1.2026.
  * Tuloste näyttää vain määrät.
@@ -31,6 +33,9 @@ const orgName = args.includes("--org") ? args[args.indexOf("--org") + 1] : "Kär
 const dryRun = args.includes("--kuiva");
 const FILE = "data/private/karkinen/karkinen.json";
 const START = "2026-01-01";
+// Hinnat ennen korotusta 27.2.2026 (laskut 10/2025–1/2026 ja vuoden 2025 tasaus), verollisia.
+const PRICES_2025 = { basic: 44.67, water: 2.23, wastewater: 2.85 };
+const PRICE_CHANGE = "2026-02-27";
 
 type Row = { koodi: string; laji: string; maara: number | null; yks: string | null; hinta: number | null; alv: number; summa: number | null };
 type Point = { kulutuspiste: string; osoite: string | null; paikkakunta: string | null; postinumero: string | null; huom: string | null; nimi: string | null; email: string | null; puhelin: string | null; puhelin2: string | null };
@@ -85,16 +90,18 @@ try {
     // Hinnasto: verolliset hinnat listalta.
     const units = data.huoneistot;
     const tariffs = [
-      { type: "basic_fee", kind: null, cls: "okt", name: "Perusmaksu", unit: "month", price: price(units, "30"), vat: 25.5 },
-      { type: "usage_fee", kind: "water", cls: null, name: "Vesi", unit: "m3", price: price(units, "34"), vat: 25.5 },
-      { type: "usage_fee", kind: "wastewater", cls: null, name: "Jätevesi", unit: "m3", price: price(units, "35"), vat: 25.5 },
+      { type: "basic_fee", kind: null, cls: "okt", name: "Perusmaksu", unit: "month", old: PRICES_2025.basic, price: price(units, "30") },
+      { type: "usage_fee", kind: "water", cls: null, name: "Vesi", unit: "m3", old: PRICES_2025.water, price: price(units, "34") },
+      { type: "usage_fee", kind: "wastewater", cls: null, name: "Jätevesi", unit: "m3", old: PRICES_2025.wastewater, price: price(units, "35") },
     ];
     for (const t of tariffs) {
-      await tx.query(
-        `insert into ml_tariffs (organization_id, charge_type, connection_kind, fee_class, name, unit, price_eur, vat_percent, price_includes_vat, valid_from)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, true, $9)`,
-        [org.id, t.type, t.kind, t.cls, t.name, t.unit, t.price, t.vat, START],
-      );
+      for (const [p, from, to] of [[t.old, "2025-01-01", "2026-02-26"], [t.price, PRICE_CHANGE, null]] as const) {
+        await tx.query(
+          `insert into ml_tariffs (organization_id, charge_type, connection_kind, fee_class, name, unit, price_eur, vat_percent, price_includes_vat, valid_from, valid_to)
+           values ($1, $2, $3, $4, $5, $6, $7, 25.5, true, $8, $9)`,
+          [org.id, t.type, t.kind, t.cls, t.name, t.unit, p, from, to],
+        );
+      }
     }
 
     for (const u of units) {
@@ -148,7 +155,7 @@ try {
       // Kiinteistön omat maksut.
       const charges: { name: string; unit: "month" | "once"; price: number; vat: number; from: string; code: string }[] = [];
       for (const [i, r] of codes("30").entries()) if (i > 0) charges.push({ name: "Perusmaksu", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: START, code: "30" });
-      for (const r of codes("31")) charges.push({ name: "Perusmaksu 2 (etäluettavat mittarit)", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: START, code: "31" });
+      for (const r of codes("31")) charges.push({ name: "Perusmaksu 2 (etäluettavat mittarit)", unit: "month", price: r.hinta ?? 0, vat: 25.5, from: periodMonth, code: "31" });
       for (const r of codes("40")) charges.push({ name: "Liittymän lisämaksu", unit: "month", price: r.hinta ?? 0, vat: 0, from: START, code: "40" });
       for (const r of codes("50")) charges.push({ name: "Jäsenmaksu", unit: "once", price: r.hinta ?? 0, vat: 0, from: periodMonth, code: "50" });
       for (const c of charges.filter((x) => x.price > 0)) {
