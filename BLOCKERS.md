@@ -23,5 +23,5 @@ Asiat, jotka odottavat tietoa tai päätöstä.
     2) Kunnan asiakkaille asetetaan asiakasryhmä kunta, jotta kunnan tuotteet ja tilit valitaan.
     3) Fennoan laskentakohteen dimensiotyyppi (dimension_api, esim. dim1) Tuotteet ja tilit -sivulle, ja testiviennillä varmistus, että tili ja laskentakohde tulevat Fennoaan oikein.
     4) Fennoan tuotelistassa veden DN40-perusmaksun tuotteilla 1023, 1123 ja 1223 on oletushintana jäteveden hinta 98,72 €. Oikea hinta on 69,11 €. Toukokuun 2026 laskuilla (1033, 1035, 1044, 1418, 1445) hinta on oikein, eivätkä Mittarilukeman laskut käytä tuotelistan hintaa. Korjattava Fennoassa, jottei käsin tehty lasku mene väärin.
-    5) Joutsan tuotteet tuodaan tuotantoon komennolla `npm run tuotteet:tuo -- … --tuotanto` Jukan luvalla.
+    5) ~~Joutsan tuotteet tuotantoon.~~ Ratkaistu 26.9.2026: kaikki 92 tuotetta, tilit ja laskentakohteet ovat tuotannossa (kuivaharjoitus 26.9.: uusia 0), ja tuotannon tarkistuksessa (31.3.–30.9.2026) kaikki 1706 laskuriviä saavat tuotteen. Tuotteista 16 on ilman laskentakohdetta; tarkistetaan dimension yhteydessä (kohta 3).
 
