@@ -55,7 +55,7 @@ src/lib/email/            sähköpostin lähetys (mock / Resend)
 src/lib/letters/          kirjeiden postitus (mock / Postita)
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0020 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0021 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu
