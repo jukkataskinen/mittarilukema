@@ -182,15 +182,30 @@ export const HELP_TOPICS: HelpTopic[] = [
     group: "Rekisteri ja käyttöpaikat",
     icon: "calendar",
     title: "Käyttöpaikan aikajana",
-    summary: "Käyttöpaikan koko historia yhdellä silmäyksellä: sopimukset, mittarit, lukemat ja tapahtumat.",
-    highlights: ["Kuka omisti ja kuka maksoi milloinkin", "Mittarit asennus- ja poistopäivineen", "Vaihdokset ja päätökset"],
-    upcoming: true,
+    summary: "Käyttöpaikan koko historia yhdellä silmäyksellä: kuka omisti, kuka maksoi, mikä mittari oli käytössä ja mitä laskutettiin.",
+    highlights: ["Kaistat omistajista, vuokralaisista ja mittareista", "Vaihdokset päätöksineen", "Lukemat ja hyväksytyt laskut samalla janalla"],
+    appPath: "/kiinteistot",
+    appLabel: "Kiinteistöt",
     sections: [
       {
-        title: "Tilanne",
-        text: "Kiinteistön sivulla näkyvät jo sopimukset, lainat ja tapahtumat. Yhdistetty aikajana on kehitteillä.",
+        title: "Aikajanan avaaminen",
+        steps: [
+          "Avaa kiinteistö ja valitse ylhäältä Aikajana.",
+          "Kaistoista näet, kuka on ollut omistaja ja vuokralainen ja mikä mittari on ollut käytössä milloinkin. Viemällä osoittimen palkin päälle näet päivämäärät, ja osapuolen palkista pääset asiakkaan sivulle.",
+          "Alla on tapahtumajana vuosittain, uusin ensin. Rajaa näkymää välilehdillä: osapuolet, mittarit ja lukemat tai laskut.",
+        ],
+      },
+      {
+        title: "Mitä janalla on",
+        bullets: [
+          "Tapahtumat: omistajanvaihdos, vuokralaisen vaihdos ja mittarinvaihto osapuolineen, lukemineen ja lainapäätöksineen.",
+          "Sopimukset ja liittymät, jotka on kirjattu muuten kuin vaihdostoiminnolla.",
+          "Lukemat lähteineen (toimisto, asiakkaan ilmoitus, tekstiviesti, etäluenta, tuonti) ja tarkistettavat lukemat.",
+          "Hyväksytyt laskut jaksoineen, maksajineen ja summineen. Laskusta pääset laskun tietoihin.",
+        ],
       },
     ],
+    tips: ["Vaihdostapahtuma kokoaa tekemänsä sopimus- ja mittarimuutokset, joten samaa asiaa ei näy janalla kahteen kertaan."],
     related: ["omistajanvaihdos", "mittarinvaihto"],
   },
   {

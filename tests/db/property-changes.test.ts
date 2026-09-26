@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Database } from "@/lib/db/types";
 import { createBillingRun, deleteDraftRun } from "@/lib/billing/run";
 import { ChangeError, changeOwner, changeTenant, confirmLoanTransfer } from "@/lib/registry/changes";
+import { buildTimeline, loadTimeline } from "@/lib/registry/timeline";
 import { freshDb, seedOrg, type OrgFixture } from "../helpers/db";
 
 /** Ohjattu omistajanvaihdos ja vuokralaisen vaihdos (DECISIONS 26.9.2026). */
@@ -136,5 +137,21 @@ describe("vuokralaisen vaihdos", () => {
     expect(r.eventId).toBeTruthy();
     const [c] = await asStaff((tx) => tx.query<{ ends_on: string }>("select ends_on::text from ml_contracts where role = 'tenant'", []));
     expect(c.ends_on).toBe("2026-03-20");
+  });
+});
+
+describe("aikajana", () => {
+  it("kokoaa vaihdokset, sopimukset ja lukemat", async () => {
+    const t = await asStaff((tx) => loadTimeline(tx, a.id, a.property));
+    const { entries, lanes } = buildTimeline(t!);
+    expect(entries.filter((e) => e.category === "event").map((e) => e.title)).toEqual([
+      "Vuokralainen muutti pois",
+      "Vuokralaisen vaihdos",
+      "Omistajanvaihdos",
+    ]);
+    expect(entries.find((e) => e.title === "Omistajanvaihdos")!.detail).toBe("Testi Asiakas → Ostaja · laina jäi myyjälle");
+    expect(lanes[0].segments.map((s) => s.label)).toEqual(["Testi Asiakas", "Ostaja"]);
+    // Toisen organisaation käyttöpaikkaa ei löydy.
+    expect(await db.asUser(a.staff.sub, (tx) => loadTimeline(tx, a.id, "00000000-0000-0000-0000-000000000000"))).toBeNull();
   });
 });

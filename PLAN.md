@@ -100,7 +100,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Vaihe 1: liittymissopimus (omistaja) ja käyttösopimus (vuokralainen), vuokralaisen maksamat osat, lainan velallinen, käyttöpaikan tapahtumat (0021); laskutusajo jakaa rivit osapuolille
 - [x] Vaihe 2: omistajanvaihdos ja vuokralaisen vaihdos ohjattuina toimintoina: pakollinen lukema, lainan kohtalo, uusi asiakas samalla lomakkeella, lainat ja tapahtumat kiinteistön sivulla; loppulasku seuraavassa laskutusajossa
 - [x] Vaihe 3: mittarinvaihto (loppu- ja aloituslukema, tarkistukset, tapahtuma) ja etäluettavien vaihtokampanja CSV-erinä tiloineen (0022, Mittarinvaihdot)
-- [ ] Vaihe 4: käyttöpaikan aikajana (sopimukset, mittarit, lukemat, tapahtumat)
+- [x] Vaihe 4: käyttöpaikan aikajana: kaistat osapuolista ja mittareista, tapahtumajana (sopimukset, mittarit, lukemat, hyväksytyt laskut, vaihdokset) suodattimin
 - [ ] Vaihe 5: asiakkaan muutosilmoitus (lomake ja QR)
 
 ### Ohjeet

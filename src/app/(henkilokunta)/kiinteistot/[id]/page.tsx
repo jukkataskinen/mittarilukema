@@ -100,7 +100,18 @@ export default async function PropertyPage({
         title={p.street_address}
         subtitle={[p.postal_code, p.city].filter(Boolean).join(" ") || undefined}
         back={{ href: "/kiinteistot", label: "Kiinteistöt" }}
-        actions={canEdit ? <LinkButton href={`${back}/muokkaa`} variant="secondary">Muokkaa</LinkButton> : null}
+        actions={
+          <div className="flex gap-2">
+            <LinkButton href={`${back}/aikajana`} variant="secondary">
+              Aikajana
+            </LinkButton>
+            {canEdit ? (
+              <LinkButton href={`${back}/muokkaa`} variant="secondary">
+                Muokkaa
+              </LinkButton>
+            ) : null}
+          </div>
+        }
       />
       <FormError message={sp.virhe} />
       {notice ? (
@@ -464,7 +475,15 @@ export default async function PropertyPage({
       {/* Käyttöpaikan tapahtumat */}
       {events.length ? (
         <section className="mt-10">
-          <SectionTitle>Tapahtumat</SectionTitle>
+          <SectionTitle
+            actions={
+              <Link href={`${back}/aikajana`} className="text-sm font-semibold text-sky">
+                Koko aikajana →
+              </Link>
+            }
+          >
+            Tapahtumat
+          </SectionTitle>
           <Table>
             <thead>
               <tr>
