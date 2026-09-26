@@ -22,6 +22,7 @@ Vesihuoltolaitosten mittarilukema- ja laskutusohjelma, joka korvaa mittarilukema
 - **Lomakkeet:** server action → `parseForm(schema, formData, backTo)`. Virhe `?virhe=`-parametrilla, sivu näyttää sen `<FormError>`-komponentilla.
 - **Päivämäärät ja rahat:** kanta `date` ja `numeric`, näyttö `src/lib/format.ts` (Europe/Helsinki). Lukemat `numeric(12,3)`.
 - **Ulkoiset palvelut** (tekstiviestit, sähköposti, kirjeet, etäluenta, Fennoa) moduulin `index.ts`-rajapinnan takana, ja mock-toteutus on oletus, kun avain puuttuu. Fennoaan ei koskaan tuotantoympäristöön testatessa.
+- **Ohjeet:** kun toiminto muuttuu tai syntyy, päivitä sen ohje :ssä samassa muutoksessa.
 - **Tuotantoon ei kosketa:** mittarilukema.fi pysyy käytössä rinnakkaisajon loppuun asti.
 
 ## Lukitut päätökset
@@ -43,6 +44,7 @@ src/app/kirjaudu/         kirjautuminen
 src/lib/db/               kantakerros (PGlite / Postgres)
 src/lib/auth/             istunto, käyttäjä ja roolit
 src/app/lukema/[token]/   julkinen lukemalomake (linkki, ei kirjautumista)
+src/app/ohjeet/           julkiset ohjeet ja toimintojen esittely (sisältö src/lib/help/topics.ts)
 src/app/api/              linkkien CSV-lataus, tekstiviestien vastaanotto
 src/lib/registry/         rekisterin kyselyt
 src/lib/readings/         lukeman kirjaus, tarkistukset, linkit, lukulista

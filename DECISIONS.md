@@ -176,3 +176,5 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 - Uuden mittarin lukutapa on oletuksena etäluettava.
 - Tiedosto luetaan UTF-8:na tai Windows-1252:na (Excelin CSV).
 - Erän voi poistaa, kunnes siitä on kirjattu yksikin vaihto.
+
+**Ohjeet julkisina (Jukka 26.9.2026).** Ohjesivuston etusivu esittelee järjestelmän toiminnot, ja jokaisesta toiminnosta pääsee sen ohjeeseen. Sivut ovat julkisia (/ohjeet), jotta niitä voi näyttää myyntitilanteessa ilman kirjautumista. Siksi niissä ei ole asiakastietoja eikä kuvakaappauksia oikeasta datasta. Sisältö on yhdessä tiedostossa (`src/lib/help/topics.ts`) ja päivitetään toimintojen mukana. Kehitteillä olevat toiminnot (aikajana, muutosilmoitus) on merkitty "Tulossa", jottei esittelyssä luvata valmista.

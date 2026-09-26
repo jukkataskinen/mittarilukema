@@ -103,6 +103,9 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [ ] Vaihe 4: käyttöpaikan aikajana (sopimukset, mittarit, lukemat, tapahtumat)
 - [ ] Vaihe 5: asiakkaan muutosilmoitus (lomake ja QR)
 
+### Ohjeet
+- [x] Julkinen ohjesivusto /ohjeet: etusivuna toiminnot (sopii myyntiesittelyyn), jokaisesta toiminnosta oma ohje (src/lib/help/topics.ts)
+
 ### Käyttöönotto (maalis–huhtikuu 2027)
 - [ ] Syyskuun 2026 laskujen uudelleenlaskenta ja vertailu (tammikuu 2027)
 - [ ] Fennoan testiympäristön pääsy (ennen joulukuuta)

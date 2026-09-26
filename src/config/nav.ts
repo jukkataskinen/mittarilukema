@@ -23,4 +23,5 @@ export const STAFF_NAV: NavItem[] = [
 export const STAFF_NAV_ORG: NavItem[] = [
   { href: "/hinnasto", label: "Hinnasto", icon: "coins", roles: ["owner", "staff"] },
   { href: "/asetukset", label: "Asetukset", icon: "gear", roles: ["owner"] },
+  { href: "/ohjeet", label: "Ohjeet", icon: "info" },
 ];
