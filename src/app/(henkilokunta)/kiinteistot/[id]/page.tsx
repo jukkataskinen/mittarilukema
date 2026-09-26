@@ -7,16 +7,25 @@ import { requireStaff } from "@/lib/auth/current-user";
 import { getProperty } from "@/lib/registry/queries";
 import { BILLING_METHOD, CONNECTION_KIND, CONTRACT_ROLE, CONTRACT_TYPE, READ_METHOD } from "@/lib/labels";
 import { TENANT_COMPONENT_LABEL, TENANT_COMPONENTS, type TenantComponent } from "@/lib/billing/parties";
-import { formatDate, formatNumber, isoDateHelsinki } from "@/lib/format";
+import { formatDate, formatEur, formatNumber, isoDateHelsinki } from "@/lib/format";
 import { ReadingsTable } from "../../lukemat/ReadingsTable";
 import { addReadingAction } from "../../lukemat/actions";
 import { addConnectionAction, addContractAction, addMeterAction, disconnectAction, endContractAction, updateMeterAction } from "../actions";
+import { confirmLoanTransferAction } from "../changeActions";
+import { EVENT_KIND } from "@/lib/registry/changes";
 
 export const metadata = { title: "Kiinteistö" };
 
 const NOTICES: Record<string, { tone: "ok" | "warn"; text: string }> = {
   tallennettu: { tone: "ok", text: "Lukema tallennettu." },
   tarkistettava: { tone: "warn", text: "Lukema tallennettu, mutta se poikkeaa aiemmista ja jää tarkistettavaksi." },
+  omistajanvaihdos: { tone: "ok", text: "Omistajanvaihdos kirjattu. Myyjän loppulasku syntyy seuraavassa laskutusajossa." },
+  vuokralainen: { tone: "ok", text: "Vuokralaisen vaihdos kirjattu." },
+  "vaihdos-tarkistettava": {
+    tone: "warn",
+    text: "Vaihdos kirjattu, mutta vaihtopäivän lukema poikkeaa aiemmista ja jää tarkistettavaksi. Hyväksy se ennen laskutusajoa, jotta kulutus jaetaan oikein.",
+  },
+  "laina-siirretty": { tone: "ok", text: "Laina laskutetaan tästä eteenpäin käyttöpaikan omistajalta." },
 };
 
 /** Toissijaiset lomakkeet avautuvat pyydettäessä, jotta sivu pysyy luettavana. */
@@ -55,10 +64,30 @@ export default async function PropertyPage({
       "select id, name from ml_reading_rounds where organization_id = $1 and status = 'open' order by target_date desc",
       [orgId],
     );
-    return { ...detail, customers, org, rounds };
+    const loans = await tx.query<{
+      id: string; balance_eur: string; balance_date: string; monthly_amortization_eur: string; final_month: string | null;
+      debtor_customer_id: string | null; debtor_name: string | null;
+    }>(
+      `select l.id, l.balance_eur::text, l.balance_date::text, l.monthly_amortization_eur::text, l.final_month::text,
+              l.debtor_customer_id, cu.name as debtor_name
+         from ml_property_loans l left join ml_customers cu on cu.id = l.debtor_customer_id
+        where l.property_id = $1 order by l.created_at`,
+      [id],
+    );
+    const events = await tx.query<{ id: string; kind: string; event_date: string; notes: string | null; details: { fromCustomerId?: string | null; toCustomerId?: string | null; loanDecision?: string | null } }>(
+      "select id, kind, event_date::text, notes, details from ml_property_events where property_id = $1 order by event_date desc, created_at desc",
+      [id],
+    );
+    const names = new Map(
+      (await tx.query<{ id: string; name: string }>(
+        `select id, name from ml_customers where id = any($1::uuid[])`,
+        [[...new Set(events.flatMap((e) => [e.details.fromCustomerId, e.details.toCustomerId]).filter(Boolean))]],
+      )).map((r) => [r.id, r.name]),
+    );
+    return { ...detail, customers, org, rounds, loans, events, names };
   });
   if (!data) notFound();
-  const { property: p, connections, meters, contracts, readings, customers, rounds } = data;
+  const { property: p, connections, meters, contracts, readings, customers, rounds, loans, events, names } = data;
   const back = `/kiinteistot/${id}`;
   const today = isoDateHelsinki();
   const activeConnections = connections.filter((c) => !c.disconnected_on);
@@ -244,7 +273,22 @@ export default async function PropertyPage({
 
       {/* Maksaja ja sopimukset */}
       <section className="mt-10">
-        <SectionTitle>Sopimukset</SectionTitle>
+        <SectionTitle
+          actions={
+            canEdit ? (
+              <div className="flex flex-wrap gap-2">
+                <LinkButton href={`${back}/omistajanvaihdos`} variant="secondary">
+                  Omistajanvaihdos
+                </LinkButton>
+                <LinkButton href={`${back}/vuokralainen`} variant="secondary">
+                  Vuokralaisen vaihdos
+                </LinkButton>
+              </div>
+            ) : null
+          }
+        >
+          Sopimukset
+        </SectionTitle>
         {contracts.length === 0 ? (
           <EmptyState title="Ei sopimuksia">Kiinteistölle ei synny laskua ennen kuin maksaja on kirjattu.</EmptyState>
         ) : (
@@ -370,6 +414,97 @@ export default async function PropertyPage({
           </Disclosure>
         ) : null}
       </section>
+
+      {/* Lainaosuudet: velallinen on omistaja, ellei laina jäänyt myyjälle */}
+      {loans.length ? (
+        <section className="mt-10">
+          <SectionTitle>Lainaosuus</SectionTitle>
+          <Table>
+            <thead>
+              <tr>
+                <Th numeric>Saldo</Th>
+                <Th numeric>Kuukausierä</Th>
+                <Th>Velallinen</Th>
+                {canEdit ? <Th /> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {loans.map((l) => (
+                <tr key={l.id}>
+                  <Td numeric>
+                    {formatEur(l.balance_eur)}
+                    <span className="block text-xs text-ink/55">{formatDate(l.balance_date)}</span>
+                  </Td>
+                  <Td numeric>
+                    {formatEur(l.monthly_amortization_eur)}
+                    {l.final_month ? <span className="block text-xs text-ink/55">loppuerä {formatDate(l.final_month)}</span> : null}
+                  </Td>
+                  <Td>
+                    {l.debtor_customer_id ? (
+                      <>
+                        <Link href={`/asiakkaat/${l.debtor_customer_id}`} className="font-semibold hover:text-sky">
+                          {l.debtor_name}
+                        </Link>
+                        <span className="block text-xs text-amber">Laina jäi myyjälle, kunnes kauppakirja osoittaa siirron</span>
+                      </>
+                    ) : (
+                      "Käyttöpaikan omistaja"
+                    )}
+                  </Td>
+                  {canEdit ? (
+                    <Td className="text-right">
+                      {l.debtor_customer_id ? (
+                        <form action={confirmLoanTransferAction}>
+                          <input type="hidden" name="loanId" value={l.id} />
+                          <input type="hidden" name="propertyId" value={id} />
+                          <button className="text-sm font-semibold text-sky">Laina siirtynyt omistajalle</button>
+                        </form>
+                      ) : null}
+                    </Td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </section>
+      ) : null}
+
+      {/* Käyttöpaikan tapahtumat */}
+      {events.length ? (
+        <section className="mt-10">
+          <SectionTitle>Tapahtumat</SectionTitle>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Päivä</Th>
+                <Th>Tapahtuma</Th>
+                <Th>Osapuolet</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((e) => (
+                <tr key={e.id}>
+                  <Td className="tabular whitespace-nowrap">{formatDate(e.event_date)}</Td>
+                  <Td>
+                    {EVENT_KIND[e.kind] ?? e.kind}
+                    {e.details.loanDecision ? (
+                      <span className="block text-xs text-ink/60">
+                        {e.details.loanDecision === "transfers" ? "Laina siirtyi ostajalle" : "Laina jäi myyjälle"}
+                      </span>
+                    ) : null}
+                    {e.notes ? <span className="block whitespace-pre-line text-xs text-ink/60">{e.notes}</span> : null}
+                  </Td>
+                  <Td>
+                    {[e.details.fromCustomerId, e.details.toCustomerId].some(Boolean)
+                      ? `${e.details.fromCustomerId ? (names.get(e.details.fromCustomerId) ?? "") : "–"} → ${e.details.toCustomerId ? (names.get(e.details.toCustomerId) ?? "") : "–"}`
+                      : ""}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </section>
+      ) : null}
 
       {/* Liittymät */}
       <section className="mt-10">

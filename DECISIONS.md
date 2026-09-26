@@ -155,3 +155,11 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 **Lukema vaaditaan vaihdoksessa, laskutus vaihtuu seuraavan kuun alusta.** Omistajan ja vuokralaisen vaihdoksessa lukema on pakollinen: kulutus jaetaan vaihtopäivän lukemalla. Kuukausimaksut vaihtuvat vaihtoa seuraavan kuun alusta. Toteutuneen kulutuksen laskussa tämä seuraa kuukauden 1. päivästä. Arviolasku laskutetaan jakson ensimmäisenä päivänä voimassa olevilta osapuolilta, joten vaihtokuukausi kuuluu vielä edelliselle.
 
 **Tasaus osapuolten vaihtuessa.** Tasaus laskutetaan jakson lopun osapuolille, ja laskulle tulee huomautus, jos osapuolet vaihtuivat jaksolla. Arvioiden kohdistus maksajittain tehdään, kun ensimmäinen tällainen tapaus tulee vastaan.
+
+**Omistajanvaihdos ja vuokralaisen vaihdos ohjattuina (vaihe 2).** Vaihdos tehdään omalla lomakkeellaan kiinteistön sivulta, ja kaikki vaiheet tallentuvat samassa transaktiossa: lukemat, sopimusten päättyminen ja alku, lainan velallinen ja tapahtuma. Näin käyttöpaikalle ei jää puolikasta tilaa. Vaihtopäivä on lähtevän osapuolen viimeinen päivä: lukema kirjataan sille, ja uusi sopimus alkaa seuraavana päivänä. Lukema vaaditaan kaikilta vaihtopäivänä käytössä olevilta mittareilta. Jos lukema poikkeaa aiemmista, se jää tarkistettavaksi, ja siitä ilmoitetaan, koska laskutus käyttää vain hyväksyttyjä lukemia.
+
+**Loppulasku seuraavassa laskutusajossa.** Erillistä heti tehtävää loppulaskua ei tehdä. Laskutusajo jakaa jakson vaihtopäivän lukemalla ja tekee lähtevälle oman laskunsa. Näin loppulasku kulkee saman tarkistuksen, hyväksynnän ja Fennoa-viennin läpi kuin muutkin laskut.
+
+**Uusi asiakas vaihdoslomakkeella.** Ostajan tai vuokralaisen voi perustaa suoraan vaihdoslomakkeella, jottei vaihdosta tarvitse keskeyttää. Laskukanavaa ei kysytä siinä: Fennoa-vienti estää laskun, kunnes kanava on asetettu asiakkaan sivulla. Se on sama periaate kuin muillakin asiakkailla.
+
+**Lainan siirron vahvistus.** Kun laina on jäänyt myyjälle, kiinteistön sivulla on painike "Laina siirtynyt omistajalle". Painike poistaa erillisen velallisen, ja siirto kirjataan lokiin. Vuokralaiselle lainaosuus ei siirry koskaan.
