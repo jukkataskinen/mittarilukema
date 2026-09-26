@@ -126,7 +126,8 @@ export default async function PropertyPage({
             { label: "Alue", value: p.area_name },
             { label: "Kiinteistötunnus", value: p.property_code },
             { label: "Laskutustapa", value: p.billing_method ? BILLING_METHOD[p.billing_method] : `${BILLING_METHOD[data.org.billing_method]} (oletus)` },
-            { label: "Arvioitu vuosikulutus", value: p.estimated_annual_m3 ? formatNumber(p.estimated_annual_m3, "m³") : null },
+            { label: "Arvioitu tai sovittu vuosikulutus", value: p.estimated_annual_m3 ? formatNumber(p.estimated_annual_m3, "m³") : null },
+            ...(p.occupants !== null ? [{ label: "Henkilöluku", value: String(p.occupants) }] : []),
             ...(p.notes ? [{ label: "Muistiinpanot", value: <span className="whitespace-pre-line">{p.notes}</span> }] : []),
           ]}
         />

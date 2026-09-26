@@ -1,7 +1,7 @@
 import type { Sql } from "@/lib/db/types";
 import { audit } from "@/lib/audit";
 import { billingMonths, calculateBill, estimateAnnualM3, type BilledEstimate, type ConnectionKind } from "./calculate";
-import { loadOrgBillingData } from "./load";
+import { agreedAnnualM3, loadOrgBillingData } from "./load";
 import { invoiceInfo } from "./info";
 import { changeBoundaries, partiesOn, splitByParty, type PartyContract } from "./parties";
 import { loadProducts, resolveProduct, toResolved } from "@/lib/products";
@@ -62,7 +62,7 @@ export async function createBillingRun(
     [orgId, start, end, scopeName, areaId, input.note ?? null, input.userId, kind],
   );
 
-  const { properties, tariffs, estimateBasis } = await loadOrgBillingData(tx, orgId);
+  const { properties, tariffs, estimateBasis, occupantM3PerYear } = await loadOrgBillingData(tx, orgId);
   // Tuote, tili ja laskentakohde riveille (0024). Asiakasryhmä valitsee esim. kunnan tuotteet.
   const products = await loadProducts(tx, orgId);
   const customerGroups = new Map(
@@ -141,11 +141,21 @@ export async function createBillingRun(
     const months = billingMonths(start, end).length;
     const billed = billedEstimates.get(p.propertyId);
     const billedEstimate = Math.max(billed?.water?.m3 ?? 0, billed?.wastewater?.m3 ?? 0);
+    // Mittariton kiinteistö: kulutus henkilöluvusta tai sovitusta vuosikulutuksesta (0026).
+    // Vain toteutuneen kulutuksen laskussa: arviolaskutuksessa vuosiarvio on jo laskun perusta,
+    // ja tasauksen mittarittomat käsitellään erikseen (Kärkinen).
+    const agreed = agreedAnnualM3(p, occupantM3PerYear);
+    const agreedNote =
+      kind === "actual" && agreed !== null && !p.meters.some((m) => m.installedOn <= end && (m.removedOn === null || m.removedOn > start))
+        ? `Kiinteistöllä ei ole mittaria. Kulutus laskutetaan ${
+            p.estimatedAnnualM3 !== null ? `sovitun vuosikulutuksen ${fmt3(agreed)} m3` : `henkilöluvun mukaan: ${p.occupants} × ${fmt3(occupantM3PerYear)} m3 vuodessa`
+          }.`
+        : "";
     const calc = (s0: string, e0: string, windowDays?: number) =>
       calculateBill({
         periodStart: s0, periodEnd: e0, areaId: p.areaId, connections: p.connections, meters: p.meters, tariffs, readingWindowDays: windowDays,
         mode: kind, estimateM3: annual !== null ? Math.round(((annual * months) / 12) * 1000) / 1000 : 0, billedEstimates: billed,
-        propertyCharges: p.charges, loans: p.loans,
+        propertyCharges: p.charges, loans: p.loans, agreedAnnualM3: kind === "actual" ? agreed : null,
       });
     // Jakson rivit osapuolten laskuiksi. Kulutus, lukemat ja huomautukset tulevat
     // laskulle, jolla on kulutusrivit (tai ensimmäiselle, jos niitä ei ole).
@@ -176,7 +186,7 @@ export async function createBillingRun(
           water_m3: part.primary ? res.waterM3 : 0, wastewater_m3: part.primary ? res.wastewaterM3 : 0,
           net_eur: net, vat_eur: vat, gross_eur: round2(net + vat), usage: part.primary ? res.usage : [],
           issues: part.primary ? issues : [],
-          info: [periodNote, roleNote, kindNote, part.primary ? readingInfo : ""].filter(Boolean).join("\n") || null,
+          info: [periodNote, roleNote, kindNote, part.primary ? agreedNote : "", part.primary ? readingInfo : ""].filter(Boolean).join("\n") || null,
           estimate_annual_m3: annual, estimate_source: estimateSource,
         });
         const lineCtx = {

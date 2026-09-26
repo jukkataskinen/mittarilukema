@@ -53,8 +53,19 @@ export function PropertyForm({
             <option value="estimate">{BILLING_METHOD.estimate}</option>
           </Select>
         </Field>
-        <Field label="Arvioitu vuosikulutus (m³)" htmlFor="estimatedAnnualM3" hint="Vain uudelle liittymälle, jolla ei ole edellisen vuoden kulutusta.">
+        <Field
+          label="Arvioitu tai sovittu vuosikulutus (m³)"
+          htmlFor="estimatedAnnualM3"
+          hint="Uudelle liittymälle arviolaskua varten. Jos kiinteistöllä ei ole mittaria, kulutus laskutetaan tämän mukaan."
+        >
           <Input id="estimatedAnnualM3" name="estimatedAnnualM3" inputMode="decimal" defaultValue={property?.estimated_annual_m3?.replace(".", ",") ?? ""} />
+        </Field>
+        <Field
+          label="Henkilöluku"
+          htmlFor="occupants"
+          hint="Jos kiinteistöllä ei ole mittaria, kulutus laskutetaan henkilöluvun mukaan. Sovittu vuosikulutus ohittaa henkilöluvun."
+        >
+          <Input id="occupants" name="occupants" inputMode="numeric" defaultValue={property?.occupants ?? ""} />
         </Field>
       </div>
       <Field label="Muistiinpanot" htmlFor="notes">

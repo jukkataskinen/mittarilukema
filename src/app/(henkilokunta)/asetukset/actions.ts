@@ -21,18 +21,21 @@ export async function updateBillingAction(formData: FormData) {
     .object({
       billingMethod: z.enum(["actual", "estimate"]),
       settlementMonth: z.preprocess((v) => (v === "" || v === null ? null : Number(v)), z.number().int().min(1).max(12).nullable()),
+      // Mittarittoman kiinteistön kulutus asukasta kohden vuodessa (0026).
+      occupantM3: z.preprocess((v) => (typeof v === "string" && v.trim() ? Number(v.replace(",", ".")) : 40), z.number().positive().max(1000)),
     })
-    .safeParse({ billingMethod: formData.get("billingMethod"), settlementMonth: formData.get("settlementMonth") });
+    .safeParse({ billingMethod: formData.get("billingMethod"), settlementMonth: formData.get("settlementMonth"), occupantM3: formData.get("occupantM3") });
   if (!input.success) fail(BACK, "Tarkista laskutuksen asetukset.");
   if (input.data.billingMethod === "actual" && months.length === 0) fail(BACK, "Valitse vähintään yksi laskutuskuukausi.");
   if (input.data.billingMethod === "estimate" && !input.data.settlementMonth) fail(BACK, "Valitse tasauslaskun kuukausi.");
 
   await ctx.run(async (tx) => {
-    await tx.query("update ml_organizations set billing_method = $2, billing_months = $3, settlement_month = $4 where id = $1", [
+    await tx.query("update ml_organizations set billing_method = $2, billing_months = $3, settlement_month = $4, occupant_m3_per_year = $5 where id = $1", [
       ctx.org.organizationId,
       input.data.billingMethod,
       input.data.billingMethod === "actual" ? months : Array.from({ length: 12 }, (_, i) => i + 1),
       input.data.billingMethod === "estimate" ? input.data.settlementMonth : null,
+      input.data.occupantM3,
     ]);
     await audit(tx, {
       organizationId: ctx.org.organizationId,

@@ -21,6 +21,7 @@ const propertySchema = z.object({
   propertyCode: optionalText(40),
   billingMethod: z.preprocess(emptyToNull, z.enum(["actual", "estimate"]).nullable()),
   estimatedAnnualM3: optionalText(20),
+  occupants: z.preprocess((v) => (typeof v === "string" && v.trim() ? Number(v.trim()) : null), z.number().int("Henkilöluku on kokonaisluku.").min(0).max(999).nullable()),
   notes: optionalText(2000),
 });
 
@@ -35,7 +36,7 @@ function propertyValues(input: z.infer<typeof propertySchema>, backTo: string) {
     estimate = parseReading(input.estimatedAnnualM3);
     if (estimate === null) fail(backTo, "Arvioitu vuosikulutus on luku kuutioina.");
   }
-  return [input.areaId, code, input.streetAddress, input.postalCode, input.city, input.billingMethod, estimate, input.notes];
+  return [input.areaId, code, input.streetAddress, input.postalCode, input.city, input.billingMethod, estimate, input.notes, input.occupants];
 }
 
 export async function createPropertyAction(formData: FormData) {
@@ -45,8 +46,8 @@ export async function createPropertyAction(formData: FormData) {
   const values = propertyValues(input, backTo);
   const id = await ctx.run(async (tx) => {
     const [row] = await tx.query<{ id: string }>(
-      `insert into ml_properties (organization_id, area_id, property_code, street_address, postal_code, city, billing_method, estimated_annual_m3, notes)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
+      `insert into ml_properties (organization_id, area_id, property_code, street_address, postal_code, city, billing_method, estimated_annual_m3, notes, occupants)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
       [ctx.org.organizationId, ...values],
     );
     await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "property.create", entity: "ml_properties", entityId: row.id });
@@ -65,7 +66,7 @@ export async function updatePropertyAction(formData: FormData) {
   await ctx.run(async (tx) => {
     const rows = await tx.query(
       `update ml_properties set area_id = $3, property_code = $4, street_address = $5, postal_code = $6, city = $7,
-              billing_method = $8, estimated_annual_m3 = $9, notes = $10
+              billing_method = $8, estimated_annual_m3 = $9, notes = $10, occupants = $11
         where id = $1 and organization_id = $2 returning id`,
       [id, ctx.org.organizationId, ...values],
     );

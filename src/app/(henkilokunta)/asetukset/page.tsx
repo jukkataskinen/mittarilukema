@@ -20,9 +20,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       await tx.query<{
         name: string; business_id: string | null; billing_method: "actual" | "estimate"; billing_months: number[]; settlement_month: number | null; sms_number: string | null;
         contact_email: string | null; contact_phone: string | null; postal_street: string | null; postal_code: string | null; postal_city: string | null;
+        occupant_m3_per_year: string;
       }>(
         `select name, business_id, billing_method, billing_months, settlement_month, sms_number,
-                contact_email, contact_phone, postal_street, postal_code, postal_city from ml_organizations where id = $1`,
+                contact_email, contact_phone, postal_street, postal_code, postal_city, occupant_m3_per_year::text from ml_organizations where id = $1`,
         [orgId],
       )
     )[0],
@@ -96,6 +97,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                     </option>
                   ))}
                 </Select>
+              </Field>
+              <Field
+                label="Kulutus asukasta kohden (m³ vuodessa)"
+                htmlFor="occupantM3"
+                hint="Kiinteistöille, joilla ei ole mittaria. Kulutus on henkilöluku kertaa tämä, ellei kiinteistölle ole sovittu omaa vuosikulutusta."
+              >
+                <Input id="occupantM3" name="occupantM3" inputMode="decimal" defaultValue={String(Number(org.occupant_m3_per_year)).replace(".", ",")} />
               </Field>
               <div>
                 <Button>Tallenna</Button>

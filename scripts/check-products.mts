@@ -1,5 +1,5 @@
 import { openTargetDb } from "./lib/target-db.mts";
-import { loadOrgBillingData } from "../src/lib/billing/load.ts";
+import { agreedAnnualM3, loadOrgBillingData } from "../src/lib/billing/load.ts";
 import { calculateBill } from "../src/lib/billing/calculate.ts";
 import { loadProducts, resolveProduct } from "../src/lib/products/index.ts";
 
@@ -27,7 +27,7 @@ try {
   await db.asService(async (tx) => {
     const [o] = await tx.query<{ id: string }>("select id from ml_organizations where name = $1", [org]);
     if (!o) throw new Error(`Organisaatiota ${org} ei löydy.`);
-    const { properties, tariffs } = await loadOrgBillingData(tx, o.id);
+    const { properties, tariffs, occupantM3PerYear } = await loadOrgBillingData(tx, o.id);
     const products = await loadProducts(tx, o.id);
     // Maksajan asiakasryhmä: jakson lopussa voimassa oleva laskutettava sopimus.
     const groups = new Map(
@@ -47,7 +47,7 @@ try {
       if (!p.connections.length) continue;
       const res = calculateBill({
         periodStart: start, periodEnd: end, areaId: p.areaId, connections: p.connections, meters: p.meters, tariffs,
-        propertyCharges: p.charges, loans: p.loans,
+        propertyCharges: p.charges, loans: p.loans, agreedAnnualM3: agreedAnnualM3(p, occupantM3PerYear),
       });
       const ctx = { areaId: p.areaId, customerGroup: groups.get(p.propertyId) ?? null, metered: p.meters.some((m) => m.installedOn <= end && (m.removedOn === null || m.removedOn > start)) };
       for (const l of res.lines) {

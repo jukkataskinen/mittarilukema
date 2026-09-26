@@ -314,6 +314,21 @@ export const HELP_TOPICS: HelpTopic[] = [
         ],
       },
       {
+        title: "Kiinteistö ilman mittaria",
+        text: "Jos kiinteistöllä ei ole mittaria, kulutus laskutetaan henkilöluvun tai sovitun kulutuksen mukaan.",
+        steps: [
+          "Avaa kiinteistö ja valitse Muokkaa.",
+          "Kirjoita henkilöluku. Kulutus on henkilöluku kertaa 40 m³ vuodessa. Määrän voi muuttaa asetuksissa.",
+          "Jos kulutuksesta on sovittu muuten, kirjoita sovittu vuosikulutus. Se ohittaa henkilöluvun.",
+          "Tallenna.",
+        ],
+        bullets: [
+          "Laskulle tulee jakson osuus vuosikulutuksesta. Puolen vuoden laskulla yhden asukkaan kulutus on 20 m³.",
+          "Laskun lisätiedoissa kerrotaan, miten kulutus laskettiin.",
+          "Jos henkilölukua tai sovittua kulutusta ei ole, laskulle tulee huomautus.",
+        ],
+      },
+      {
         title: "Hinnasto ja kiinteistön maksut",
         bullets: [
           "Hinnastossa ovat käyttö- ja perusmaksut voimassaoloaikoineen, joten hinnanmuutoksen voi kirjata etukäteen.",
@@ -322,7 +337,7 @@ export const HELP_TOPICS: HelpTopic[] = [
         ],
       },
     ],
-    related: ["laskukanava", "omistajanvaihdos", "lukemat"],
+    related: ["laskukanava", "omistajanvaihdos", "lukemat", "tuotteet"],
   },
   {
     slug: "hinnasto",
@@ -542,6 +557,10 @@ export const HELP_TOPICS: HelpTopic[] = [
       {
         title: "Yhteystiedot",
         text: "Sähköposti, puhelin ja postiosoite näkyvät tiedotteiden allekirjoituksessa. Sähköpostiin tulee myös ilmoitus uusista muutosilmoituksista.",
+      },
+      {
+        title: "Kulutus asukasta kohden",
+        text: "Kiinteistöille, joilla ei ole mittaria. Kulutus on henkilöluku kertaa tämä määrä vuodessa. Oletus on 40 m³.",
       },
       {
         title: "Tekstiviestinumero",

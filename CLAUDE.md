@@ -63,7 +63,7 @@ src/lib/meters/           mittarinvaihto (swap) ja vaihtokampanjan erät (campai
 src/lib/registry/changes  omistajanvaihdos ja vuokralaisen vaihdos
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0025 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0026 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu

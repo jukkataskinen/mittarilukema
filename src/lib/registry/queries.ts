@@ -96,6 +96,7 @@ export interface PropertyDetail {
   city: string | null;
   billing_method: "actual" | "estimate" | null;
   estimated_annual_m3: string | null;
+  occupants: number | null;
   notes: string | null;
   legacy_id: string | null;
 }
@@ -103,7 +104,7 @@ export interface PropertyDetail {
 export async function getProperty(tx: Sql, orgId: string, id: string) {
   const [property] = await tx.query<PropertyDetail>(
     `select p.id, p.area_id, a.name as area_name, p.property_code, p.street_address, p.postal_code, p.city,
-            p.billing_method, p.estimated_annual_m3::text, p.notes, p.legacy_id
+            p.billing_method, p.estimated_annual_m3::text, p.occupants, p.notes, p.legacy_id
        from ml_properties p left join ml_areas a on a.id = p.area_id
       where p.organization_id = $1 and p.id = $2`,
     [orgId, id],

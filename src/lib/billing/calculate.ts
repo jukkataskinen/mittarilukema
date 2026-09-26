@@ -118,6 +118,8 @@ export interface BillingInput {
   billedEstimates?: Partial<Record<ConnectionKind, BilledEstimate>>;
   propertyCharges?: PropertyCharge[];
   loans?: PropertyLoan[];
+  /** Mittariton kiinteistö: sovittu vuosikulutus m³ (henkilöluvusta tai sovittu). Laskutetaan jakson kuukausien osuus. */
+  agreedAnnualM3?: number | null;
 }
 
 export interface BillingLine {
@@ -271,6 +273,7 @@ export function calculateBill(input: BillingInput): BillingResult {
 
   // --- Kulutus ---
   let metered = 0;
+  let agreed: number | null = null;
   if (mode !== "estimate") {
   const measuringKind: ConnectionKind | null = water ? "water" : waste ? "wastewater" : null;
   for (const m of input.meters) {
@@ -292,14 +295,22 @@ export function calculateBill(input: BillingInput): BillingResult {
     usage.push({ meterId: m.id, connectionKind: conn.kind, from: u.from, to: u.to, m3 });
     metered += m3;
   }
-  if (measuringKind && usage.length === 0) issues.push("Kiinteistöllä ei ole mittaria jaksolla.");
+  if (measuringKind && usage.length === 0) {
+    if (input.agreedAnnualM3 != null) {
+      // Mittariton: kulutus sovitusta vuosikulutuksesta jakson kuukausille (esim. 40 m³/v → 20 m³ puolelta vuodelta).
+      agreed = round3((input.agreedAnnualM3 * billingMonths(start, end).length) / 12);
+      metered = agreed;
+    } else {
+      issues.push("Kiinteistöllä ei ole mittaria jaksolla. Anna henkilöluku tai sovittu vuosikulutus, jos kulutus laskutetaan ilman mittaria.");
+    }
+  }
   }
   // Laskutettava määrä: arvio, toteutunut tai tasauksessa erotus (voi olla negatiivinen = hyvitys).
   // Laskutettava määrä: arvio tai toteutunut (tasauksessa arviot vähennetään omilla riveillään).
   const billable = mode === "estimate" ? round3(input.estimateM3 ?? 0) : round3(metered);
   const waterM3 = water ? billable : 0;
   const wastewaterM3 = waste ? billable : 0;
-  const suffix = mode === "estimate" ? ", arvio" : "";
+  const suffix = mode === "estimate" ? ", arvio" : agreed !== null ? ", sovittu kulutus" : "";
   const usageLabel = (kind: ConnectionKind) =>
     mode === "settlement" ? (kind === "water" ? "Kulutusmaksu vesi" : "Kulutusmaksu jätevesi") : `${kind === "water" ? "Vesi" : "Jätevesi"}${suffix}`;
 
