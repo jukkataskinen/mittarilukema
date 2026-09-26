@@ -58,7 +58,7 @@ describe("tiedotteet", () => {
     const sender = mockEmail();
     const s = await sendEmailBatch(runner(a.staff.sub), sender, { organizationId: a.id, userId: a.staff.id, announcementId: annId });
     expect(s).toMatchObject({ sent: 1, failed: 0, remaining: 0 });
-    expect(sender.sent[0]).toMatchObject({ to: "eka@example.fi", subject: "Hinnat muuttuvat", replyTo: "toimisto@example.fi", fromName: "Laitos A" });
+    expect(sender.sent[0]).toMatchObject({ to: ["eka@example.fi"], subject: "Hinnat muuttuvat", replyTo: "toimisto@example.fi", fromName: "Laitos A" });
     const again = mockEmail();
     await sendEmailBatch(runner(a.staff.sub), again, { organizationId: a.id, userId: a.staff.id, announcementId: annId });
     expect(again.sent).toHaveLength(0);
@@ -130,5 +130,19 @@ describe("PDF-liite", () => {
     await db.asUser(a.staff.sub, (tx) => lockAnnouncement(tx, { organizationId: a.id, userId: a.staff.id, announcementId: id, today }));
     const other = await db.asUser(b.staff.sub, (tx) => tx.query("select 1 from ml_announcement_attachments"));
     expect(other).toHaveLength(0);
+  });
+});
+
+describe("asiakkaan lähetysloki", () => {
+  it("näyttää tiedotteet kanavineen ja osoitteineen lähetyshetken tiedoista", async () => {
+    const { customerCommunications } = await import("@/lib/communications");
+    const log = await db.asUser(a.staff.sub, (tx) => customerCommunications(tx, a.id, a.customer));
+    const email = log.find((r) => r.title === "Tiedote: Hinnat muuttuvat");
+    expect(email).toMatchObject({ channel: "Sähköposti", destination: "eka@example.fi", status: "Lähetetty", kind: "announcement" });
+    const letter = log.find((r) => r.title === "Tiedote: Kirjeet");
+    expect(letter).toMatchObject({ channel: "Kirje", status: "Postitettu" });
+    expect(letter?.destination).toMatch(/Testitie 1, 41800 KORPILAHTI/);
+    const foreign = await db.asUser(b.staff.sub, (tx) => customerCommunications(tx, a.id, a.customer));
+    expect(foreign).toEqual([]);
   });
 });

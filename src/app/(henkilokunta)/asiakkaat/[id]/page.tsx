@@ -4,7 +4,8 @@ import { Badge, DefinitionList, Notice, EmptyState, LinkButton, PageHeader, Pane
 import { requireStaff } from "@/lib/auth/current-user";
 import { getCustomer } from "@/lib/registry/queries";
 import { CONTRACT_ROLE, CUSTOMER_KIND } from "@/lib/labels";
-import { formatDate, isoDateHelsinki } from "@/lib/format";
+import { formatDate, formatDateTime, isoDateHelsinki } from "@/lib/format";
+import { customerCommunications } from "@/lib/communications";
 import { formatPhone } from "@/lib/validation/phone";
 import { CHANNEL_LABEL, channelProblems, isInvoiceChannel } from "@/lib/fennoa/channel";
 
@@ -14,9 +15,12 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const ctx = await requireStaff();
-  const data = await ctx.run((tx) => getCustomer(tx, ctx.org.organizationId, id));
+  const data = await ctx.run(async (tx) => {
+    const d = await getCustomer(tx, ctx.org.organizationId, id);
+    return d ? { ...d, log: await customerCommunications(tx, ctx.org.organizationId, id) } : null;
+  });
   if (!data) notFound();
-  const { customer: c, contracts } = data;
+  const { customer: c, contracts, log } = data;
   const today = isoDateHelsinki();
   const problems = channelProblems(c);
   const address = [c.billing_street, [c.billing_postal_code, c.billing_city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
@@ -105,6 +109,43 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
           </Table>
         )}
       </section>
+      <section className="mt-8">
+        <SectionTitle>Lähetetyt</SectionTitle>
+        {log.length === 0 ? (
+          <EmptyState title="Ei lähetyksiä">Tähän kootaan asiakkaalle lähetetyt tiedotteet ja laskut sekä kanava, jota pitkin ne lähtivät.</EmptyState>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <Th>Päivä</Th>
+                <Th>Mitä</Th>
+                <Th>Kanava</Th>
+                <Th>Osoite</Th>
+                <Th>Tila</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {log.map((r, i) => (
+                <tr key={`${r.href}-${i}`}>
+                  <Td className="tabular whitespace-nowrap">{r.at ? formatDateTime(r.at) : "–"}</Td>
+                  <Td>
+                    <Link href={r.href} className="font-semibold hover:text-sky">
+                      {r.title}
+                    </Link>
+                  </Td>
+                  <Td>{r.channel}</Td>
+                  <Td className="text-sm">{r.destination ?? "–"}</Td>
+                  <Td>
+                    <Badge tone={r.tone}>{r.status}</Badge>
+                    {r.note ? <span className="mt-1 block text-xs text-ink/65">{r.note}</span> : null}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </section>
+
       {c.legacy_id ? <p className="mt-8 text-xs text-ink/45">Tunniste mittarilukema.fi:ssä: {c.legacy_id}</p> : null}
     </>
   );

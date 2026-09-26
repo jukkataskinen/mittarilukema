@@ -141,3 +141,7 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 - Sähköpostissa PDF on viestin liitteenä. Jos tekstiä ei ole, viestissä kerrotaan, että tiedote on liitteenä.
 - Kirjeessä osoitteellinen saatesivu tulee ikkunakuoren kohdalle, ja PDF:n sivut tulevat sen perään A4-kokoon sovitettuina. Postitan raja on 12 sivua kirjettä kohden.
 - Tiedosto tallennetaan kantaan (bytea) samojen organisaatiorajausten taakse kuin tiedote. Näin erillistä tiedostopalvelua ei tarvita, ja Vercelin 4,5 Mt:n pyyntöraja riittää.
+
+**Asiakkaan lähetysloki (Jukka 26.9.2026).** Asiakkaan sivulla on "Lähetetyt"-loki, josta näkee, mitä asiakkaalle lähetettiin ja mitä kanavaa pitkin. Mukana ovat tiedotteet (sähköposti tai kirje, itse tulostettu tai Postita) ja laskujen viennit Fennoaan (laskukanava ja viennin tila). Loki kootaan lähetyshetken tiedoista: osoite on se, johon tiedote todella lähti, vaikka asiakkaan tiedot olisivat myöhemmin muuttuneet. Uutta tauluja ei tarvittu, koska vastaanottajat ja viennit tallennetaan jo lähetyshetkellä.
+
+**Useampi sähköpostiosoite.** Kärkisen asiakasrekisterissä samassa kentässä voi olla useampi osoite (tuotannossa 11 asiakkaalla). Tiedote lähtee kaikkiin kelvollisiin osoitteisiin, jotta se ei lähde kirjeenä vain siksi, ettei kenttä ole yksi osoite. Fennoa-laskun sähköpostikanava vaatii edelleen yhden osoitteen, ja muut estetään viennissä.

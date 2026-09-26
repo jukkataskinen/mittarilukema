@@ -7,7 +7,8 @@
  */
 
 export interface EmailMessage {
-  to: string;
+  /** Yksi tai useampi vastaanottaja (sama viesti kaikille). */
+  to: string | string[];
   subject: string;
   text: string;
   html: string;
@@ -48,7 +49,7 @@ function resend(apiKey: string, from: string): EmailSender {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: `${m.fromName.replace(/[<>"]/g, "")} <${address}>`,
-          to: [m.to],
+          to: Array.isArray(m.to) ? m.to : [m.to],
           subject: m.subject,
           text: m.text,
           html: m.html,

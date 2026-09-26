@@ -41,6 +41,15 @@ export const CHANNEL_LABEL: Record<Channel, string> = { email: "Sähköposti", l
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Sähköpostikentän kelvolliset osoitteet. Kärkisen asiakasrekisterissä samassa
+ * kentässä voi olla useampi osoite (rivinvaihto, pilkku tai puolipiste);
+ * tiedote lähtee kaikkiin, eikä kirjeenä vain siksi, ettei kenttä ole yksi osoite.
+ */
+export function emailsOf(value: string | null | undefined): string[] {
+  return [...new Set((value ?? "").split(/[\s,;]+/).map((x) => x.trim().toLowerCase()).filter((x) => EMAIL.test(x)))];
+}
+
 export interface RecipientCustomer {
   customer_id: string;
   name: string;
@@ -57,7 +66,7 @@ export function addressLines(c: RecipientCustomer): string[] {
 }
 
 export function decideChannel(c: RecipientCustomer, delivery: Delivery): Channel {
-  const email = !!c.email && EMAIL.test(c.email);
+  const email = emailsOf(c.email).length > 0;
   const letter = addressLines(c).length > 0;
   if (delivery === "letter_all") return letter ? "letter" : email ? "email" : "none";
   return email ? "email" : letter ? "letter" : "none";
@@ -102,7 +111,7 @@ export async function lockAnnouncement(tx: Sql, input: { organizationId: string;
        from json_to_recordset($3::json) as x(customer_id uuid, channel text, name text, email text, address_lines json)`,
     [
       input.organizationId, input.announcementId,
-      JSON.stringify(recipients.map((r) => ({ customer_id: r.customer_id, channel: r.channel, name: r.name, email: r.channel === "email" ? r.email : null, address_lines: r.address_lines }))),
+      JSON.stringify(recipients.map((r) => ({ customer_id: r.customer_id, channel: r.channel, name: r.name, email: r.channel === "email" ? emailsOf(r.email).join(", ") : null, address_lines: r.address_lines }))),
     ],
   );
   await tx.query("update ml_announcements set status = 'sending', locked_at = now(), locked_by = $2, updated_at = now() where id = $1", [input.announcementId, input.userId]);
@@ -183,7 +192,7 @@ export async function sendEmailBatch(
   const results: { id: string; ok: boolean; error: string | null }[] = [];
   for (const r of claimed.rows) {
     try {
-      await sender.send({ ...message, to: r.email, fromName: claimed.a.name, replyTo: claimed.a.contact_email, attachments });
+      await sender.send({ ...message, to: emailsOf(r.email), fromName: claimed.a.name, replyTo: claimed.a.contact_email, attachments });
       results.push({ id: r.id, ok: true, error: null });
     } catch (err) {
       results.push({ id: r.id, ok: false, error: err instanceof EmailError ? err.message : "Lähetys epäonnistui." });

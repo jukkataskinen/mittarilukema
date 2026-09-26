@@ -90,3 +90,12 @@ describe("PDF-tiedote", () => {
     expect(await validatePdf(await samplePdf(3))).toEqual({ pages: 3 });
   });
 });
+
+describe("useampi sähköpostiosoite", () => {
+  it("kaikki kelvolliset osoitteet käytetään, eikä tiedote vaihdu kirjeeksi", async () => {
+    const { emailsOf } = await import("@/lib/announcements");
+    expect(emailsOf("tiina@example.fi\nklaus@example.fi")).toEqual(["tiina@example.fi", "klaus@example.fi"]);
+    expect(emailsOf("A@Example.fi; ei-osoite, a@example.fi")).toEqual(["a@example.fi"]);
+    expect(decideChannel(c({ email: "tiina@example.fi\nklaus@example.fi" }), "email_first")).toBe("email");
+  });
+});
