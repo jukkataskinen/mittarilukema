@@ -163,3 +163,16 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 **Uusi asiakas vaihdoslomakkeella.** Ostajan tai vuokralaisen voi perustaa suoraan vaihdoslomakkeella, jottei vaihdosta tarvitse keskeyttää. Laskukanavaa ei kysytä siinä: Fennoa-vienti estää laskun, kunnes kanava on asetettu asiakkaan sivulla. Se on sama periaate kuin muillakin asiakkailla.
 
 **Lainan siirron vahvistus.** Kun laina on jäänyt myyjälle, kiinteistön sivulla on painike "Laina siirtynyt omistajalle". Painike poistaa erillisen velallisen, ja siirto kirjataan lokiin. Vuokralaiselle lainaosuus ei siirry koskaan.
+
+**Mittarinvaihto omana toimintonaan (vaihe 3).** Mittari vaihdetaan mittarin kohdalta Vaihda mittari -toiminnolla. Vanha mittari poistetaan loppulukemalla, ja uusi asennetaan samalle liittymälle aloituslukemalla samana päivänä. Samalla käyttöpaikalle kirjataan tapahtuma. Mittarin lisäyslomakkeen vanha korvausvalinta poistettiin, koska siitä puuttuivat tarkistukset ja tapahtuma. Tarkistukset ovat samat yksittäiselle vaihdolle ja kampanjan riville:
+- päivä ei ole tulevaisuudessa eikä ennen vanhan mittarin asennusta
+- loppulukema ei ole pienempi kuin edellinen hyväksytty lukema
+- vanhalla mittarilla ei ole lukemaa vaihtopäivän jälkeen
+- uusi numero ei ole käytössä toisella mittarilla
+
+**Vaihtokampanja CSV-erinä (0022).** Asentajan lista ladataan eräksi, ja jokainen rivi tarkistetaan ennen kuin mitään kirjataan. Rivin tila on valmis, korjattava, ohitettu tai kirjattu.
+- Sama vaihto tunnistetaan jo kirjatuksi, joten saman listan voi ladata uudelleen ilman kaksoiskirjauksia.
+- Rivit kirjataan 150 kerrallaan (Vercelin aikaraja), ja jokainen vaihto on oma kokonaisuutensa (savepoint).
+- Uuden mittarin lukutapa on oletuksena etäluettava.
+- Tiedosto luetaan UTF-8:na tai Windows-1252:na (Excelin CSV).
+- Erän voi poistaa, kunnes siitä on kirjattu yksikin vaihto.

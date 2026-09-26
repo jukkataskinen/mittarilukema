@@ -24,6 +24,8 @@ const TABLES = [
   "ml_property_loans",
   "ml_legacy_billed_estimates",
   "ml_property_events",
+  "ml_meter_swap_batches",
+  "ml_meter_swap_rows",
 ];
 // Laskutusajon taulut testataan tiedostossa billing-run.test.ts.
 
@@ -61,6 +63,8 @@ beforeAll(async () => {
         "insert into ml_legacy_billed_estimates (organization_id, property_id, month, connection_kind, m3, net_eur, gross_eur, source) values ($1, $2, '2026-01-01', 'water', 2, 4.1, 5.14, 'invoice')",
         [org.id, org.property],
       );
+      const [sb] = await tx.query<{ id: string }>("insert into ml_meter_swap_batches (organization_id, name) values ($1, 'Erä') returning id", [org.id]);
+      await tx.query("insert into ml_meter_swap_rows (organization_id, batch_id, row_no, raw) values ($1, $2, 2, '{}')", [org.id, sb.id]);
       await tx.query("insert into ml_property_events (organization_id, property_id, kind, event_date) values ($1, $2, 'meter_change', '2026-05-01')", [
         org.id,
         org.property,

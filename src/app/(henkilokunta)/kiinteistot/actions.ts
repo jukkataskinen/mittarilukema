@@ -110,9 +110,6 @@ const meterSchema = z.object({
   location: optionalText(200),
   installedOn: date("Anna asennuspäivä."),
   startReading: z.string().min(1, "Anna aloituslukema."),
-  // Mittarinvaihto: vanhan mittarin loppulukema samalle päivälle.
-  replaceMeterId: optionalUuid,
-  finalReading: optionalText(20),
 });
 
 export async function addMeterAction(formData: FormData) {
@@ -121,20 +118,8 @@ export async function addMeterAction(formData: FormData) {
   const back = `/kiinteistot/${input.propertyId}`;
   const start = parseReading(input.startReading);
   if (start === null) fail(back, "Aloituslukema on luku, jossa on enintään kolme desimaalia.");
-  let final: number | null = null;
-  if (input.replaceMeterId) {
-    final = input.finalReading ? parseReading(input.finalReading) : null;
-    if (final === null) fail(back, "Anna vaihdettavan mittarin loppulukema.");
-  }
+  // Mittarinvaihto tehdään omalla toiminnollaan (src/lib/meters/swap.ts).
   await ctx.run(async (tx) => {
-    if (input.replaceMeterId) {
-      const rows = await tx.query(
-        "update ml_meters set removed_on = $3, final_reading = $4 where id = $1 and organization_id = $2 and removed_on is null returning id",
-        [input.replaceMeterId, ctx.org.organizationId, input.installedOn, final],
-      );
-      if (rows.length === 0) fail(back, "Vaihdettavaa mittaria ei löytynyt tai se on jo poistettu.");
-      await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "meter.remove", entity: "ml_meters", entityId: input.replaceMeterId });
-    }
     const [row] = await tx.query<{ id: string }>(
       `insert into ml_meters (organization_id, connection_id, meter_number, read_method, location, installed_on, start_reading)
        values ($1, $2, $3, $4, $5, $6, $7) returning id`,

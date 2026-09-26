@@ -10,6 +10,8 @@ import { parseReading } from "@/lib/readings/checks";
 import { normalizePhone } from "@/lib/validation/phone";
 import { audit } from "@/lib/audit";
 import { ChangeError, changeOwner, changeTenant, confirmLoanTransfer } from "@/lib/registry/changes";
+import { MeterSwapError, swapMeter } from "@/lib/meters/swap";
+import { isoDateHelsinki } from "@/lib/format";
 
 const date = (msg: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, msg);
 const optionalText = (max = 200) => z.preprocess(emptyToNull, z.string().max(max).nullable());
@@ -135,4 +137,38 @@ export async function confirmLoanTransferAction(formData: FormData) {
   if (!ok) fail(back, "Lainalle ei ole kirjattu erillistä velallista.");
   revalidatePath(back);
   redirect(`${back}?ilmoitus=laina-siirretty`);
+}
+
+const swapSchema = z.object({
+  propertyId: z.string().uuid(),
+  oldMeterId: z.string().uuid({ message: "Valitse vaihdettava mittari." }),
+  date: date("Anna vaihtopäivä."),
+  finalReading: z.string().min(1, "Anna vanhan mittarin loppulukema."),
+  newMeterNumber: z.string().trim().min(1, "Anna uuden mittarin numero.").max(60),
+  startReading: z.string().min(1, "Anna uuden mittarin aloituslukema."),
+  readMethod: z.enum(["remote", "mechanical"]),
+  notes: optionalText(2000),
+});
+
+export async function swapMeterAction(formData: FormData) {
+  const ctx = await requireRole("owner", "staff");
+  const propertyId = String(formData.get("propertyId") ?? "");
+  const back = `/kiinteistot/${propertyId}/mittarinvaihto`;
+  const input = parseForm(swapSchema, formData, back);
+  const finalReading = parseReading(input.finalReading);
+  const startReading = parseReading(input.startReading);
+  if (finalReading === null || startReading === null) fail(`${back}?mittari=${input.oldMeterId}`, "Tarkista lukemat: anna pelkkä luku, esimerkiksi 1234,5.");
+  try {
+    await ctx.run((tx) =>
+      swapMeter(tx, {
+        organizationId: ctx.org.organizationId, userId: ctx.user.id, oldMeterId: input.oldMeterId, today: isoDateHelsinki(), date: input.date,
+        finalReading, startReading, newMeterNumber: input.newMeterNumber, readMethod: input.readMethod, source: "staff", notes: input.notes,
+      }),
+    );
+  } catch (err) {
+    if (err instanceof MeterSwapError) fail(`${back}?mittari=${input.oldMeterId}`, err.message);
+    throw err;
+  }
+  revalidatePath(`/kiinteistot/${input.propertyId}`);
+  redirect(`/kiinteistot/${input.propertyId}?ilmoitus=mittari-vaihdettu`);
 }

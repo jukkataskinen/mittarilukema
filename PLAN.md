@@ -99,7 +99,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 ### Käyttöpaikan osapuolet ja mittarit (Jukka 26.9.2026)
 - [x] Vaihe 1: liittymissopimus (omistaja) ja käyttösopimus (vuokralainen), vuokralaisen maksamat osat, lainan velallinen, käyttöpaikan tapahtumat (0021); laskutusajo jakaa rivit osapuolille
 - [x] Vaihe 2: omistajanvaihdos ja vuokralaisen vaihdos ohjattuina toimintoina: pakollinen lukema, lainan kohtalo, uusi asiakas samalla lomakkeella, lainat ja tapahtumat kiinteistön sivulla; loppulasku seuraavassa laskutusajossa
-- [ ] Vaihe 3: mittarinvaihto (irrotus- ja asennuslukema) ja etäluettavien vaihtokampanja joukkotuontina
+- [x] Vaihe 3: mittarinvaihto (loppu- ja aloituslukema, tarkistukset, tapahtuma) ja etäluettavien vaihtokampanja CSV-erinä tiloineen (0022, Mittarinvaihdot)
 - [ ] Vaihe 4: käyttöpaikan aikajana (sopimukset, mittarit, lukemat, tapahtumat)
 - [ ] Vaihe 5: asiakkaan muutosilmoitus (lomake ja QR)
 

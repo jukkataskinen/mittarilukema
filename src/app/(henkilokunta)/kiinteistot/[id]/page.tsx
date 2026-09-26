@@ -26,6 +26,7 @@ const NOTICES: Record<string, { tone: "ok" | "warn"; text: string }> = {
     text: "Vaihdos kirjattu, mutta vaihtopäivän lukema poikkeaa aiemmista ja jää tarkistettavaksi. Hyväksy se ennen laskutusajoa, jotta kulutus jaetaan oikein.",
   },
   "laina-siirretty": { tone: "ok", text: "Laina laskutetaan tästä eteenpäin käyttöpaikan omistajalta." },
+  "mittari-vaihdettu": { tone: "ok", text: "Mittarinvaihto kirjattu. Vanhan mittarin kulutus lasketaan loppulukemaan ja uuden aloituslukemasta." },
 };
 
 /** Toissijaiset lomakkeet avautuvat pyydettäessä, jotta sivu pysyy luettavana. */
@@ -74,7 +75,7 @@ export default async function PropertyPage({
         where l.property_id = $1 order by l.created_at`,
       [id],
     );
-    const events = await tx.query<{ id: string; kind: string; event_date: string; notes: string | null; details: { fromCustomerId?: string | null; toCustomerId?: string | null; loanDecision?: string | null } }>(
+    const events = await tx.query<{ id: string; kind: string; event_date: string; notes: string | null; details: { fromCustomerId?: string | null; toCustomerId?: string | null; loanDecision?: string | null; oldMeterNumber?: string | null; newMeterNumber?: string | null; finalReading?: number; startReading?: number } }>(
       "select id, kind, event_date::text, notes, details from ml_property_events where property_id = $1 order by event_date desc, created_at desc",
       [id],
     );
@@ -180,6 +181,13 @@ export default async function PropertyPage({
                       </div>
                     </form>
                   ) : null}
+                  {canEdit && !m.removed_on ? (
+                    <div className="mt-4 border-t border-line pt-3">
+                      <Link href={`${back}/mittarinvaihto?mittari=${m.id}`} className="text-sm font-semibold text-sky">
+                        Vaihda mittari
+                      </Link>
+                    </div>
+                  ) : null}
                   {canEdit ? (
                     <details className="mt-4 border-t border-line pt-3">
                       <summary className="cursor-pointer text-sm font-semibold text-sky">Muokkaa mittarin tietoja</summary>
@@ -214,7 +222,7 @@ export default async function PropertyPage({
           </div>
         )}
         {canEdit && activeConnections.length > 0 ? (
-          <Disclosure label="Lisää mittari tai vaihda mittari">
+          <Disclosure label="Lisää mittari">
             <form action={addMeterAction} className="grid gap-4 sm:grid-cols-2">
               <input type="hidden" name="propertyId" value={id} />
               <Field label="Liittymä" htmlFor="connectionId">
@@ -244,25 +252,9 @@ export default async function PropertyPage({
               <Field label="Aloituslukema" htmlFor="startReading">
                 <Input id="startReading" name="startReading" inputMode="decimal" defaultValue="0" required />
               </Field>
-              {meters.some((m) => !m.removed_on) ? (
-                <>
-                  <Field label="Korvaa mittarin" htmlFor="replaceMeterId" hint="Vanha mittari poistetaan asennuspäivänä.">
-                    <Select id="replaceMeterId" name="replaceMeterId" defaultValue="">
-                      <option value="">Ei, lisätään uusi mittari</option>
-                      {meters
-                        .filter((m) => !m.removed_on)
-                        .map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.meter_number ?? "Numeroton mittari"}
-                          </option>
-                        ))}
-                    </Select>
-                  </Field>
-                  <Field label="Vanhan mittarin loppulukema" htmlFor="finalReading">
-                    <Input id="finalReading" name="finalReading" inputMode="decimal" />
-                  </Field>
-                </>
-              ) : null}
+              <p className="text-xs text-ink/55 sm:col-span-2">
+                Uusi mittari liittymälle. Kun mittari vaihdetaan toiseen, käytä mittarin kohdalla olevaa Vaihda mittari -toimintoa: se kirjaa vanhan loppulukeman ja tapahtuman.
+              </p>
               <div className="sm:col-span-2">
                 <Button>Tallenna mittari</Button>
               </div>
@@ -478,7 +470,7 @@ export default async function PropertyPage({
               <tr>
                 <Th>Päivä</Th>
                 <Th>Tapahtuma</Th>
-                <Th>Osapuolet</Th>
+                <Th>Osapuolet tai mittarit</Th>
               </tr>
             </thead>
             <tbody>
@@ -495,6 +487,9 @@ export default async function PropertyPage({
                     {e.notes ? <span className="block whitespace-pre-line text-xs text-ink/60">{e.notes}</span> : null}
                   </Td>
                   <Td>
+                    {e.kind === "meter_change"
+                      ? `${e.details.oldMeterNumber ?? "numeroton"} (${formatNumber(e.details.finalReading ?? null)}) → ${e.details.newMeterNumber ?? ""} (${formatNumber(e.details.startReading ?? null)})`
+                      : null}
                     {[e.details.fromCustomerId, e.details.toCustomerId].some(Boolean)
                       ? `${e.details.fromCustomerId ? (names.get(e.details.fromCustomerId) ?? "") : "–"} → ${e.details.toCustomerId ? (names.get(e.details.toCustomerId) ?? "") : "–"}`
                       : ""}

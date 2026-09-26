@@ -53,9 +53,11 @@ src/lib/fennoa/           laskukanava (channel), laskun muunnos (invoice), vient
 src/lib/announcements/    tiedotteet: vastaanottajat ja toimitustapa (index), ikkunakirjeet PDF:nä (letter)
 src/lib/email/            sähköpostin lähetys (mock / Resend)
 src/lib/letters/          kirjeiden postitus (mock / Postita)
+src/lib/meters/           mittarinvaihto (swap) ja vaihtokampanjan erät (campaign)
+src/lib/registry/changes  omistajanvaihdos ja vuokralaisen vaihdos
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0021 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0022 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu
