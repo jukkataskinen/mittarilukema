@@ -19,7 +19,7 @@ Asiat, jotka odottavat tietoa tai päätöstä.
 15. **Tiedotteiden sähköposti.** Resendin tili ja avain (RESEND_API_KEY) sekä lähettäjäosoite vahvistetusta verkkotunnuksesta (EMAIL_FROM), minkä jälkeen EMAIL_MODE=resend. Kunnes ne on asetettu, sähköpostit ovat testitilassa. Organisaatioiden yhteystiedot (sähköposti, osoite, puhelin) lisätään Asetuksissa. Ikkunakirjeen koetuloste tarkistetaan käytettävää kirjekuorta vasten ennen ensimmäistä postitusta.
 16. **Postita-tili.** Postitan tili (luottokortti- tai laskutusasiakkuus) ja tunnukset POSTITA_USERNAME ja POSTITA_PASSWORD Verceliin sekä LETTER_MODE=postita. Ensimmäisestä työstä tarkistetaan vedos Postitassa ennen vahvistusta.
 18. **Joutsan tuotteet ja kirjanpito.** Tuoterekisteri on tehty (0024). Auki:
-    1) Mitkä kiinteistöt ovat Leivonmäellä? Leivonmäen tuotteet (1200–1255, eri tilit) ovat käsin valittavia, kunnes Leivonmäki on alue ja kiinteistöt on liitetty siihen.
+    1) ~~Mitkä kiinteistöt ovat Leivonmäellä?~~ Ratkaistu 26.9.2026: Alue 7 on Leivonmäki, ja sen tuotteet valitaan automaattisesti.
     2) Kunnan asiakkaille asetetaan asiakasryhmä kunta, jotta kunnan tuotteet ja tilit valitaan.
     3) Fennoan laskentakohteen dimensiotyyppi (dimension_api, esim. dim1) Tuotteet ja tilit -sivulle, ja testiviennillä varmistus, että tili ja laskentakohde tulevat Fennoaan oikein.
     4) Fennoan tuotelistassa veden perusmaksun DN40 oletushinta on 98,72 €, mutta hinnastossa ja laskuilla 69,11 €. Laskut lasketaan hinnastosta, joten ero ei vaikuta laskuihin, mutta tuotelista kannattaa korjata Fennoassa.

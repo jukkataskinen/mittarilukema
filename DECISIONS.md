@@ -203,3 +203,5 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 
 **Kehitystoiveet (0025, Jukka 26.9.2026).** Käyttäjät jättävät kehitystoiveita, ja jokainen toive kohdistetaan toimintoon. Toiminnot ovat samat kuin ohjesivuston aiheet, joten toiveet, ohjeet ja sivut ryhmittyvät samalla tavalla. Jokaisella henkilökunnan sivulla on Ohje-linkin vieressä Kehitystoive-linkki, joka täyttää toiminnon ja sivun valmiiksi. Myös jokaisella ohjesivulla on linkki. Käyttöoikeudet tarkennetaan myöhemmin. Aluksi kaikki organisaation jäsenet näkevät organisaation toiveet ja voivat jättää omia, ja tilaa ja vastausta muuttavat pääkäyttäjä ja toimisto.
 
+**Leivonmäki on Alue 7 (Jukka 26.9.2026).** Kiinteistöillä ei ole omia postinumeroita, mutta alueen 7 maksajien laskutusosoitteista 81 on 41770 Leivonmäki, 19 Joutsa ja loput verkkolaskuosoitteita. Muilla alueilla Leivonmäen osoitteita ei ole. Alue 7 nimettiin tuotannossa Leivonmäeksi, ja Leivonmäen tuotteet 1200–1255 sidottiin alueeseen. Tuotannon tarkistus jaksolta 31.3.–30.9.2026: kaikki 1700 riviä saavat tuotteen, joista 238 Leivonmäen tuotteen.
+

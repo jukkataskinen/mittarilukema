@@ -7,9 +7,10 @@
  *   "Jäteveden perusmaksu Rutalahti"     perusmaksu, jätevesi, omakotitalo, alue Rutalahti
  *   "…, ei mittaria Joutsa"              kiinteistöllä ei mittaria
  *
- * Leivonmäen tuotteet jäävät käsin valittaviksi, kunnes tiedetään, mitkä
- * kiinteistöt ovat Leivonmäellä (BLOCKERS 18). Hyvitys-, myynti- ja
- * palvelutuotteet ovat aina käsin valittavia.
+ * Leivonmäen ja Rutalahden tuotteet sidotaan samannimiseen alueeseen. Tuonti
+ * jättää ne käsin valittaviksi, jos aluetta ei ole (Leivonmäki = entinen
+ * Alue 7, DECISIONS 26.9.2026). Hyvitys-, myynti- ja palvelutuotteet ovat
+ * aina käsin valittavia.
  */
 
 export interface JoutsaRule {
@@ -37,7 +38,7 @@ export function joutsaRule(name: string): JoutsaRule {
   const rutalahti = /rutalahti/.test(n);
   const kunta = /\bkunta\b/.test(n);
   return {
-    autoMatch: !leivonmaki,
+    autoMatch: true,
     chargeType: basic ? "basic_fee" : "usage_fee",
     connectionKind: kind,
     feeClass: basic ? (dn ? `dn${dn[1]}` : "okt") : null,

@@ -34,8 +34,8 @@ describe("Joutsan säännöt tuotenimestä", () => {
     ["Jäteveden perusmaksu, ei mittaria Rutalahti", { autoMatch: true, chargeType: "basic_fee", connectionKind: "wastewater", feeClass: "okt", areaName: "Rutalahti", customerGroup: null, metered: false }],
     ["Jäteveden perusmaksu kunta/Rutalahti", { autoMatch: true, chargeType: "basic_fee", connectionKind: "wastewater", feeClass: "okt", areaName: "Rutalahti", customerGroup: "kunta", metered: null }],
   ])("%s", (name, rule) => expect(joutsaRule(name)).toEqual(rule));
-  it("Leivonmäki, hyvitykset ja palvelut käsin", () => {
-    expect(joutsaRule("Veden perusmaksu Leivonmäki").autoMatch).toBe(false);
+  it("Leivonmäki alueeseen, hyvitykset ja palvelut käsin", () => {
+    expect(joutsaRule("Veden perusmaksu Leivonmäki")).toMatchObject({ autoMatch: true, areaName: "Leivonmäki", feeClass: "okt" });
     expect(joutsaRule("Hyvitys vesi Joutsa").autoMatch).toBe(false);
     expect(joutsaRule("Työveloitus, kunta").autoMatch).toBe(false);
   });
