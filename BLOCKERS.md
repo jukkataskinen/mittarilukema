@@ -22,6 +22,6 @@ Asiat, jotka odottavat tietoa tai päätöstä.
     1) ~~Mitkä kiinteistöt ovat Leivonmäellä?~~ Ratkaistu 26.9.2026: Alue 7 on Leivonmäki, ja sen tuotteet valitaan automaattisesti.
     2) Kunnan asiakkaille asetetaan asiakasryhmä kunta, jotta kunnan tuotteet ja tilit valitaan.
     3) Fennoan laskentakohteen dimensiotyyppi (dimension_api, esim. dim1) Tuotteet ja tilit -sivulle, ja testiviennillä varmistus, että tili ja laskentakohde tulevat Fennoaan oikein.
-    4) Fennoan tuotelistassa veden perusmaksun DN40 oletushinta on 98,72 €, mutta hinnastossa ja laskuilla 69,11 €. Laskut lasketaan hinnastosta, joten ero ei vaikuta laskuihin, mutta tuotelista kannattaa korjata Fennoassa.
+    4) Fennoan tuotelistassa veden DN40-perusmaksun tuotteilla 1023, 1123 ja 1223 on oletushintana jäteveden hinta 98,72 €. Oikea hinta on 69,11 €. Toukokuun 2026 laskuilla (1033, 1035, 1044, 1418, 1445) hinta on oikein, eivätkä Mittarilukeman laskut käytä tuotelistan hintaa. Korjattava Fennoassa, jottei käsin tehty lasku mene väärin.
     5) Joutsan tuotteet tuodaan tuotantoon komennolla `npm run tuotteet:tuo -- … --tuotanto` Jukan luvalla.
 
