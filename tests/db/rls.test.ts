@@ -136,6 +136,25 @@ describe("organisaatioiden eristys", () => {
   });
 });
 
+describe("julkinen avain", () => {
+  it("anon-roolilla ei ole oikeuksia tauluihin eikä migraatiokirjanpitoon", async () => {
+    for (const sql of ["select id from ml_customers", "select name from ml_schema_migrations", "select ml_my_org_ids()"]) {
+      await expect(
+        db.asService(async (tx) => {
+          await tx.query("set local role anon");
+          return tx.query(sql);
+        }),
+      ).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it("kirjautunut käyttäjä ei näe migraatiokirjanpitoa", async () => {
+    await expect(db.asUser(a.staff.sub, (tx) => tx.query("select name from ml_schema_migrations"))).rejects.toThrow(
+      /permission denied/,
+    );
+  });
+});
+
 describe("roolit", () => {
   it("mittarinlukija voi kirjata lukeman omissa nimissään", async () => {
     const rows = await db.asUser(a.reader.sub, (tx) =>

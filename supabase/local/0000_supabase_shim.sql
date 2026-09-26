@@ -29,3 +29,11 @@ language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
 $$;
 grant execute on function auth.jwt() to anon, authenticated, service_role;
+
+-- Supabasen oletusoikeudet: anon saa kaikki oikeudet public-skeeman uusiin
+-- tauluihin, sekvensseihin ja funktioihin. Sama tässä, jotta testi todistaa,
+-- että migraatio 0027 poistaa ne eikä testi mene läpi vain siksi, ettei
+-- paikallisessa kannassa oikeuksia alun perinkään ollut.
+alter default privileges in schema public grant all on tables to anon;
+alter default privileges in schema public grant all on sequences to anon;
+alter default privileges in schema public grant all on functions to anon;
