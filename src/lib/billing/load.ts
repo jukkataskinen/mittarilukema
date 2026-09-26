@@ -51,9 +51,9 @@ export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ prop
   );
   const chargeRows = await tx.query<{
     property_id: string; name: string; unit: "month" | "once"; price_eur: string; vat_percent: string; price_includes_vat: boolean;
-    valid_from: string; valid_to: string | null;
+    valid_from: string; valid_to: string | null; product_id: string | null;
   }>(
-    `select property_id, name, unit, price_eur::text, vat_percent::text, price_includes_vat, valid_from::text, valid_to::text
+    `select property_id, name, unit, price_eur::text, vat_percent::text, price_includes_vat, valid_from::text, valid_to::text, product_id
        from ml_property_charges where organization_id = $1 order by valid_from, name`,
     [orgId],
   );
@@ -98,7 +98,7 @@ export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ prop
   }));
   for (const c of chargeRows) {
     properties.get(c.property_id)?.charges.push({
-      name: c.name, unit: c.unit, priceEur: Number(c.price_eur), vatPercent: Number(c.vat_percent), priceIncludesVat: c.price_includes_vat,
+      name: c.name, productId: c.product_id, unit: c.unit, priceEur: Number(c.price_eur), vatPercent: Number(c.vat_percent), priceIncludesVat: c.price_includes_vat,
       validFrom: c.valid_from, validTo: c.valid_to,
     });
   }

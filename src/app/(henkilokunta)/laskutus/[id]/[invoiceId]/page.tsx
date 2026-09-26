@@ -116,7 +116,16 @@ export default async function InvoicePage({
           <tbody>
             {lines.map((l) => (
               <tr key={l.line_no}>
-                <Td>{l.description}</Td>
+                <Td>
+                  {l.description}
+                  {l.product_code ? (
+                    <span className="block text-xs text-ink/55">
+                      Tuote {l.product_code}
+                      {l.account_code ? ` · tili ${l.account_code}` : ""}
+                      {l.cost_center_code ? ` · laskentakohde ${l.cost_center_code}` : ""}
+                    </span>
+                  ) : null}
+                </Td>
                 <Td numeric>
                   {formatNumber(l.quantity)} {UNIT[l.unit]}
                 </Td>

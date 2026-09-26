@@ -45,6 +45,8 @@ src/lib/db/               kantakerros (PGlite / Postgres)
 src/lib/auth/             istunto, käyttäjä ja roolit
 src/app/lukema/[token]/   julkinen lukemalomake (linkki, ei kirjautumista)
 src/app/ilmoitus/[token]/ julkinen muutosilmoituslomake (organisaation tunnus, ei kirjautumista)
+src/lib/products/         tuoterekisteri: tuotteen valinta laskuriville, Fennoan tuotelista, Joutsan säännöt
+src/lib/feature-requests  kehitystoiveet (toiminnot = ohjesivuston aiheet)
 src/lib/change-requests/  muutosilmoitusten tarkistus, lähetysrajat, käsittely ja QR-koodi
 src/app/ohjeet/           julkiset ohjeet ja toimintojen esittely (sisältö src/lib/help/topics.ts)
 src/app/api/              linkkien CSV-lataus, tekstiviestien vastaanotto
@@ -61,7 +63,7 @@ src/lib/meters/           mittarinvaihto (swap) ja vaihtokampanjan erät (campai
 src/lib/registry/changes  omistajanvaihdos ja vuokralaisen vaihdos
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0023 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0025 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu
@@ -90,6 +92,8 @@ npm run karkinen:arviot [-- --kuiva] [--tuotanto]       vanhassa järjestelmäss
 npm run karkinen:vertaa-tasaus [-- --tuotanto]          vuoden 2025 tasauslaskut uudelleen laskettuina
 npm run karkinen:vertaa-kk -- --tiedosto <laskut.json>  arviolaskutusajo vanhoja kuukausilaskuja vasten
 npm run laskutus:poista-hyvaksytty -- --ajo <tunnus> --syy "..." [--kuiva] [--tuotanto]   virheellisesti hyväksytty ajo pois
+npm run tuotteet:tuo -- <tuotteet.csv> --org "Nimi" [--laskentakohteet <tiedosto.csv>] [--joutsa] [--kuiva] [--tuotanto]
+npm run tuotteet:tarkista -- --org "Nimi" [--alku pvm] [--loppu pvm] [--tuotanto]   montako laskuriviä saa tuotteen
 npm run kayttaja:lisaa -- --email x --org "Nimi" --rooli owner [--luo-org actual|estimate] [--tuotanto]
 npm run lint && npm run typecheck && npm run test
 ```

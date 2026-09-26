@@ -79,6 +79,13 @@ export function CustomerForm({
           <Input id="einvoiceOperator" name="einvoiceOperator" defaultValue={customer?.einvoice_operator ?? ""} />
         </Field>
       </div>
+      <Field
+        label="Asiakasryhmä"
+        htmlFor="customerGroup"
+        hint="Vapaaehtoinen. Esimerkiksi kunta. Ryhmä valitsee laskulle ryhmän oman tuotteen ja kirjanpitotilin."
+      >
+        <Input id="customerGroup" name="customerGroup" defaultValue={customer?.customer_group ?? ""} maxLength={40} />
+      </Field>
       <Field label="Muistiinpanot" htmlFor="notes">
         <Textarea id="notes" name="notes" defaultValue={customer?.notes ?? ""} />
       </Field>

@@ -367,6 +367,63 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["laskutus"],
   },
   {
+    slug: "tuotteet",
+    group: "Laskutus",
+    icon: "list",
+    title: "Tuotteet, tilit ja laskentakohteet",
+    summary: "Jokainen laskurivi saa tuotteen, kirjanpidon tilin ja laskentakohteen. Ne menevät laskun mukana Fennoaan ja kirjanpitoon.",
+    highlights: ["Tuotteet samoilla koodeilla kuin Fennoassa", "Tili ja laskentakohde tuotteelle", "Laskulle valitaan oikea tuote automaattisesti"],
+    appPath: "/tuotteet",
+    appLabel: "Tuotteet ja tilit",
+    sections: [
+      {
+        title: "Mikä on tuote",
+        bullets: [
+          "Tuote on laskun rivi, esimerkiksi Veden perusmaksu tai Jäteveden kulutus.",
+          "Tuotteella on koodi. Koodi on sama kuin Fennoassa.",
+          "Tuotteella on kirjanpidon tili. Tili kertoo, mihin myynti kirjataan.",
+          "Tuotteella on laskentakohde, esimerkiksi Puhdasvesi tai Jätevesi.",
+        ],
+      },
+      {
+        title: "Miten tuote valitaan laskulle",
+        text: "Kun laskut lasketaan, jokainen rivi saa tuotteen automaattisesti. Tuotteeseen on kirjattu, mille riveille se sopii. Jos useampi tuote sopii, valitaan se, joka sopii tarkimmin. Esimerkiksi kunnan tuote valitaan, kun asiakas kuuluu ryhmään kunta.",
+        bullets: [
+          "Maksulaji: käyttömaksu, perusmaksu tai muu maksu.",
+          "Liittymä: vesi tai jätevesi.",
+          "Perusmaksuluokka: omakotitalo, DN20, DN25 ja niin edelleen.",
+          "Alue, esimerkiksi Rutalahti.",
+          "Asiakasryhmä, esimerkiksi kunta. Ryhmä asetetaan asiakkaan tiedoissa.",
+          "Onko kiinteistöllä mittari.",
+        ],
+      },
+      {
+        title: "Tuotteen muuttaminen",
+        steps: [
+          "Avaa Tuotteet ja tilit.",
+          "Klikkaa tuotteen koodia.",
+          "Muuta tiliä, laskentakohdetta tai ehtoja.",
+          "Tallenna.",
+        ],
+        text: "Muutos koskee uusia laskutusajoja. Jo lasketut laskut eivät muutu.",
+      },
+      {
+        title: "Jos rivi jää ilman tuotetta",
+        text: "Laskulle tulee huomautus: riville ei löytynyt tuotetta. Lisää tuote tai korjaa tuotteen ehdot. Poista sitten laskutusajo ja laske se uudelleen.",
+      },
+      {
+        title: "Tilit ja laskentakohteet",
+        bullets: [
+          "Tilit ja laskentakohteet näkyvät samalla sivulla.",
+          "Voit antaa tilille nimen, jotta se on helpompi tunnistaa.",
+          "Uuden laskentakohteen voi lisätä. Samalla koodilla voi päivittää vanhan.",
+        ],
+      },
+    ],
+    tips: ["Laskun sivulla näet jokaisen rivin tuotteen, tilin ja laskentakohteen."],
+    related: ["hinnasto", "laskutus", "laskukanava"],
+  },
+  {
     slug: "laskukanava",
     group: "Laskutus",
     icon: "split",
@@ -505,6 +562,41 @@ export const HELP_TOPICS: HelpTopic[] = [
     ],
     tips: ["Alimpana näkyvät viimeisimmät muutokset: kuka teki mitä ja milloin."],
     related: ["kayttajat"],
+  },
+  {
+    slug: "kehitystoiveet",
+    group: "Hallinta ja tietoturva",
+    icon: "bolt",
+    title: "Kehitystoiveet",
+    summary: "Kerro, mitä toivot ohjelmaan. Toiveet kootaan yhteen paikkaan toiminnoittain.",
+    highlights: ["Toive suoraan toiminnon sivulta", "Tärkeys: olisi mukava, tärkeä tai estää työn", "Näet toiveen tilan ja vastauksen"],
+    appPath: "/kehitystoiveet",
+    appLabel: "Kehitystoiveet",
+    sections: [
+      {
+        title: "Toiveen jättäminen",
+        steps: [
+          "Klikkaa sivun oikeassa yläkulmassa Kehitystoive. Toiminto on silloin valmiiksi valittu.",
+          "Voit myös avata Kehitystoiveet valikosta ja valita Uusi kehitystoive.",
+          "Valitse toiminto, jota toive koskee.",
+          "Kirjoita lyhyt otsikko.",
+          "Kerro, mitä yrität tehdä ja mikä nyt on hankalaa.",
+          "Valitse, kuinka tärkeä asia on.",
+          "Lähetä.",
+        ],
+      },
+      {
+        title: "Toiveen tila",
+        bullets: [
+          "Uusi: toive on vastaanotettu.",
+          "Suunnitteilla: toive on otettu mukaan suunnitelmaan.",
+          "Työn alla: toivetta tehdään.",
+          "Tehty: toive on ohjelmassa.",
+          "Ei toteuteta: toive ei sovi ohjelmaan. Vastauksessa kerrotaan syy.",
+        ],
+      },
+    ],
+    tips: ["Älä kirjoita toiveeseen asiakkaiden henkilötietoja. Esimerkiksi kiinteistön sivun osoite riittää."],
   },
   {
     slug: "kayttajat",

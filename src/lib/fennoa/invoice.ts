@@ -16,6 +16,10 @@ export interface ExportLine {
   net_eur: number;
   vat_eur: number | null;
   price_includes_vat: boolean;
+  /** Tuoterekisteristä (0024): tuotekoodi, kirjanpitotili ja laskentakohde. */
+  product_code?: string | null;
+  account_code?: string | null;
+  cost_center_code?: string | null;
 }
 
 export interface ExportInvoice {
@@ -37,7 +41,7 @@ export type BuildResult =
   | { ok: true; form: Record<string, string>; channel: InvoiceChannel; deliveryMethod: string }
   | { ok: false; problems: string[] };
 
-export function buildFennoaInvoice(inv: ExportInvoice, opts: { invoiceDate: string; dueDate: string }): BuildResult {
+export function buildFennoaInvoice(inv: ExportInvoice, opts: { invoiceDate: string; dueDate: string; costCenterDim?: string | null }): BuildResult {
   const c = inv.customer;
   const problems = channelProblems(c);
   if (!inv.lines.length) problems.push("Laskulla ei ole rivejä.");
@@ -103,6 +107,14 @@ export function buildFennoaInvoice(inv: ExportInvoice, opts: { invoiceDate: stri
     form[`row[${n}][unit]`] = unit;
     form[`row[${n}][price]`] = String(round4(price));
     form[`row[${n}][vatpercent]`] = String(l.vat_percent);
+    // Tuotekoodi ja tili kirjanpitoon. Fennoa ottaa tilin vain tuotteelliselta riviltä.
+    if (l.product_code) {
+      form[`row[${n}][product_no]`] = l.product_code;
+      if (l.account_code) form[`row[${n}][account_code]`] = l.account_code;
+    }
+    if (l.cost_center_code && opts.costCenterDim && /^dim\d+$/.test(opts.costCenterDim)) {
+      form[`row[${n}][dim][${opts.costCenterDim}]`] = l.cost_center_code;
+    }
   });
   return { ok: true, form, channel, deliveryMethod };
 }

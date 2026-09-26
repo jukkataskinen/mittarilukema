@@ -26,6 +26,8 @@ const customerSchema = z.object({
   einvoiceOperator: optionalText(60),
   invoiceChannel: z.preprocess(emptyToNull, z.enum(INVOICE_CHANNELS).nullable()),
   notes: optionalText(2000),
+  // Asiakasryhmä valitsee laskuriville ryhmän tuotteen, esimerkiksi "kunta".
+  customerGroup: z.preprocess((v) => (typeof v === "string" ? v.trim().toLowerCase() || null : null), z.string().max(40).nullable()),
 });
 
 function customerValues(input: z.infer<typeof customerSchema>, backTo: string) {
@@ -64,6 +66,7 @@ function customerValues(input: z.infer<typeof customerSchema>, backTo: string) {
     input.einvoiceOperator,
     input.notes,
     input.invoiceChannel,
+    input.customerGroup,
   ];
 }
 
@@ -78,8 +81,8 @@ export async function createCustomerAction(formData: FormData) {
       const [row] = await tx.query<{ id: string }>(
         `insert into ml_customers (organization_id, customer_number, kind, name, business_id, email, phone, billing_street,
                                    billing_postal_code, billing_city, einvoice_address, einvoice_operator, notes, invoice_channel,
-                                   invoice_channel_source)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, case when $14::text is null then null else 'Toimisto' end) returning id`,
+                                   invoice_channel_source, customer_group)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, case when $14::text is null then null else 'Toimisto' end, $15) returning id`,
         [ctx.org.organizationId, ...values],
       );
       await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "customer.create", entity: "ml_customers", entityId: row.id });
@@ -107,7 +110,7 @@ export async function updateCustomerAction(formData: FormData) {
                 einvoice_operator = $13, notes = $14,
                 invoice_channel_source = case when invoice_channel is not distinct from $15 then invoice_channel_source
                                               when $15::text is null then null else 'Toimisto' end,
-                invoice_channel = $15
+                invoice_channel = $15, customer_group = $16
           where id = $1 and organization_id = $2 returning id`,
         [id, ctx.org.organizationId, ...values],
       );

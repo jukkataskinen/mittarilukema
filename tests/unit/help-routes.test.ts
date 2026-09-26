@@ -57,7 +57,7 @@ describe("ohjelinkit", () => {
   });
 
   it("ohje vie osioon ankkurilla", () => {
-    expect(helpFor("/hinnasto")).toEqual({ title: "Hinnasto", href: "/ohjeet/hinnasto" });
+    expect(helpFor("/hinnasto")).toEqual({ slug: "hinnasto", title: "Hinnasto", href: "/ohjeet/hinnasto" });
     expect(helpFor("/kiinteistot/abc/vuokralainen")?.href).toBe("/ohjeet/omistajanvaihdos#vuokralaisen-vaihdos");
     expect(helpFor("/mittarinvaihdot")?.href).toBe("/ohjeet/mittarinvaihto#vaihtokampanja");
   });

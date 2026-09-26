@@ -73,6 +73,7 @@ export interface BillingTariff {
 /** Kiinteistön oma maksu: kuukausittain tai kerran (validFrom-päivänä). */
 export interface PropertyCharge {
   name: string;
+  productId?: string | null;
   unit: "month" | "once";
   priceEur: number;
   vatPercent: number;
@@ -133,6 +134,10 @@ export interface BillingLine {
   priceIncludesVat: boolean;
   /** Lainaosuuden rivi: lainan järjestysnumero kiinteistön lainoissa. Laskutetaan lainan velalliselta. */
   loanIndex?: number;
+  /** Tuotteen valintaan (products.ts): perusmaksun luokka, muun maksun laji tai kiinteistön maksun tuote. */
+  feeClass?: string | null;
+  chargeType?: string;
+  productId?: string | null;
 }
 
 export interface MeterUsage {
@@ -365,7 +370,10 @@ export function calculateBill(input: BillingInput): BillingResult {
     for (const g of groups.values()) {
       // Kärkisessä perusmaksu nimetään laskulle pelkästään "Perusmaksu".
       const name = g.t.name && g.t.priceIncludesVat ? g.t.name : label;
-      lines.push(makeLine({ kind: "basic_fee", connectionKind: c.kind, description: name, unit: "month" }, g.n, g.t.priceEur, g.t.vatPercent, g.t.priceIncludesVat));
+      lines.push({
+        ...makeLine({ kind: "basic_fee", connectionKind: c.kind, description: name, unit: "month" }, g.n, g.t.priceEur, g.t.vatPercent, g.t.priceIncludesVat),
+        feeClass: c.feeClass,
+      });
     }
   }
 
@@ -390,9 +398,10 @@ export function calculateBill(input: BillingInput): BillingResult {
     for (const g of groups.values()) {
       // Vuosimaksu jaetaan kuukausille: määrä on kuukausien osuus vuodesta.
       const quantity = g.t.unit === "year" ? Math.round((g.n / 12) * 10000) / 10000 : g.n;
-      lines.push(
-        makeLine({ kind: "other_fee", connectionKind: g.t.connectionKind, description: g.t.name, unit: g.t.unit as "month" | "year" }, quantity, g.t.priceEur, g.t.vatPercent, g.t.priceIncludesVat),
-      );
+      lines.push({
+        ...makeLine({ kind: "other_fee", connectionKind: g.t.connectionKind, description: g.t.name, unit: g.t.unit as "month" | "year" }, quantity, g.t.priceEur, g.t.vatPercent, g.t.priceIncludesVat),
+        chargeType: g.t.chargeType,
+      });
     }
   }
 
@@ -405,7 +414,7 @@ export function calculateBill(input: BillingInput): BillingResult {
           ? ch.validFrom > start && ch.validFrom <= end ? 1 : 0
           : months.filter((first) => first >= firstOfMonth(ch.validFrom) && (ch.validTo === null || first <= ch.validTo)).length;
       if (n === 0) continue;
-      lines.push(makeLine({ kind: "other_fee", connectionKind: null, description: ch.name, unit: "month" }, n, ch.priceEur, ch.vatPercent, ch.priceIncludesVat));
+      lines.push({ ...makeLine({ kind: "other_fee", connectionKind: null, description: ch.name, unit: "month" }, n, ch.priceEur, ch.vatPercent, ch.priceIncludesVat), productId: ch.productId ?? null });
     }
     for (const [loanIndex, loan] of (input.loans ?? []).entries()) {
       if (loan.monthlyAmortization <= 0 && loan.finalMonth === null) {
@@ -415,11 +424,11 @@ export function calculateBill(input: BillingInput): BillingResult {
       const { amortization, payoff, interest } = loanForPeriod(loan, months);
       // Loppuerä omana rivinään, kuten vanhassa järjestelmässä: kuukausierä ja jäljellä oleva saldo.
       for (const amount of [amortization, payoff].filter((x) => x > 0)) {
-        lines.push({ ...makeLine({ kind: "other_fee", connectionKind: null, description: "Pääoman lyhennys", unit: "month" }, 1, amount, 0, false), loanIndex });
+        lines.push({ ...makeLine({ kind: "other_fee", connectionKind: null, description: "Pääoman lyhennys", unit: "month" }, 1, amount, 0, false), loanIndex, chargeType: "loan_share" });
       }
       if (interest > 0) {
         const rate = String(loan.interestPercent).replace(".", ",");
-        lines.push({ ...makeLine({ kind: "other_fee", connectionKind: null, description: `Korko ${rate} %`, unit: "month" }, 1, interest, 0, false), loanIndex });
+        lines.push({ ...makeLine({ kind: "other_fee", connectionKind: null, description: `Korko ${rate} %`, unit: "month" }, 1, interest, 0, false), loanIndex, chargeType: "loan_share" });
       }
     }
   }

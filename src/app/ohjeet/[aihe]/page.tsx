@@ -94,6 +94,14 @@ export default async function HelpTopicPage({ params }: { params: Promise<{ aihe
             </Link>
           </div>
         ) : null}
+        {t.slug !== "kehitystoiveet" ? (
+          <div className="rounded-[var(--radius-panel)] border border-line bg-paper p-5">
+            <p className="text-sm text-ink/60">Puuttuuko jotain?</p>
+            <Link href={`/kehitystoiveet/uusi?toiminto=${t.slug}`} className="mt-1 block font-semibold text-sky hover:underline">
+              Anna kehitystoive →
+            </Link>
+          </div>
+        ) : null}
         {related.length ? (
           <div className="rounded-[var(--radius-panel)] border border-line bg-paper p-5">
             <p className="text-sm text-ink/60">Katso myös</p>

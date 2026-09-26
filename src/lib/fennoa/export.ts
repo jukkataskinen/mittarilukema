@@ -71,12 +71,17 @@ export async function exportRunToFennoa(
       [runId, orgId, env],
     );
     const pick = invoices;
+    // Laskentakohteen dimensiotyyppi Fennoassa (esim. "dim1"); tyhjä = Fennoa käyttää tuotteen oletusta.
+    const [orgRow] = await tx.query<{ fennoa_cost_center_dim: string | null }>("select fennoa_cost_center_dim from ml_organizations where id = $1", [orgId]);
+    const costCenterDim = orgRow?.fennoa_cost_center_dim ?? null;
     const lines = pick.length
       ? await tx.query<{
           invoice_id: string; description: string; quantity: string; unit: "m3" | "month" | "year"; unit_price: string;
           vat_percent: string; net_eur: string; vat_eur: string | null; price_includes_vat: boolean;
+          product_code: string | null; account_code: string | null; cost_center_code: string | null;
         }>(
-          `select invoice_id, description, quantity::text, unit, unit_price::text, vat_percent::text, net_eur::text, vat_eur::text, price_includes_vat
+          `select invoice_id, description, quantity::text, unit, unit_price::text, vat_percent::text, net_eur::text, vat_eur::text, price_includes_vat,
+                  product_code, account_code, cost_center_code
              from ml_invoice_lines where invoice_id = any($1::uuid[]) order by invoice_id, line_no`,
           [pick.map((i) => i.id)],
         )
@@ -98,11 +103,11 @@ export async function exportRunToFennoa(
         lines: lines.filter((l) => l.invoice_id === i.id).map((l) => ({
           description: l.description, quantity: Number(l.quantity), unit: l.unit, unit_price: Number(l.unit_price),
           vat_percent: Number(l.vat_percent), net_eur: Number(l.net_eur), vat_eur: l.vat_eur === null ? null : Number(l.vat_eur),
-          price_includes_vat: l.price_includes_vat,
+          price_includes_vat: l.price_includes_vat, product_code: l.product_code, account_code: l.account_code, cost_center_code: l.cost_center_code,
         })),
       };
       const build: BuildResult = i.customer_id
-        ? buildFennoaInvoice(inv, { invoiceDate: input.invoiceDate, dueDate: input.dueDate })
+        ? buildFennoaInvoice(inv, { invoiceDate: input.invoiceDate, dueDate: input.dueDate, costCenterDim: costCenterDim })
         : { ok: false as const, problems: ["Laskulta puuttuu maksaja."] };
       // Estetyt kirjataan kaikki (ei Fennoa-kutsuja), lähetettävistä vain erän verran.
       if (build.ok && sendable >= batch) {

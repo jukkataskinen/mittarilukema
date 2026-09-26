@@ -103,6 +103,13 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Vaihe 4: käyttöpaikan aikajana: kaistat osapuolista ja mittareista, tapahtumajana (sopimukset, mittarit, lukemat, hyväksytyt laskut, vaihdokset) suodattimin
 - [x] Vaihe 5: asiakkaan muutosilmoitus: julkinen lomake ja QR-koodi, toimiston jono, kohdistus ja esitäytetty vaihdos (0023)
 
+### Kirjanpito
+- [x] Tuoterekisteri, kirjanpidon tilit ja laskentakohteet (0024): tuote valitaan laskuriville säännöillä, koodi, tili ja laskentakohde tallennetaan riville ja viedään Fennoaan; Joutsan 92 tuotetta Fennoan tuotelistasta (`npm run tuotteet:tuo`, `npm run tuotteet:tarkista`)
+- [ ] Joutsan tuotteet tuotantoon ja Fennoan laskentakohteen dimensio (BLOCKERS 18)
+
+### Kehitystoiveet
+- [x] Kehitystoiveet toiminnoittain (0025): lomake, lista ja käsittely; linkki jokaiselta sivulta ja ohjeelta; käyttöoikeudet tarkennetaan myöhemmin
+
 ### Ohjeet
 - [x] Julkinen ohjesivusto /ohjeet: etusivuna toiminnot (sopii myyntiesittelyyn), jokaisesta toiminnosta oma ohje (src/lib/help/topics.ts)
 

@@ -52,7 +52,7 @@ export type RawSwapRow = Partial<Record<SwapField, string>>;
 
 /** CSV (puolipiste, pilkku tai sarkain) riveiksi. Tyhjät rivit ohitetaan. */
 export function parseSwapCsv(text: string): { rows: { rowNo: number; raw: RawSwapRow }[] } {
-  const lines = text.replace(/^﻿/, "").split(/\r?\n/);
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
   const headerIdx = lines.findIndex((l) => l.trim() !== "");
   if (headerIdx < 0) throw new CampaignError("Tiedosto on tyhjä.");
   const header = lines[headerIdx];

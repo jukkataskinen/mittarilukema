@@ -23,6 +23,8 @@ export const STAFF_NAV: NavItem[] = [
 /** Organisaation asetukset ja hinnat. */
 export const STAFF_NAV_ORG: NavItem[] = [
   { href: "/hinnasto", label: "Hinnasto", icon: "coins", roles: ["owner", "staff"] },
+  { href: "/tuotteet", label: "Tuotteet ja tilit", icon: "list", roles: ["owner", "staff"] },
   { href: "/asetukset", label: "Asetukset", icon: "gear", roles: ["owner"] },
   { href: "/ohjeet", label: "Ohjeet", icon: "info" },
+  { href: "/kehitystoiveet", label: "Kehitystoiveet", icon: "bolt" },
 ];

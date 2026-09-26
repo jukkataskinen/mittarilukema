@@ -18,6 +18,8 @@
     "tuo:asiakkaat": "tsx --env-file-if-exists=.env.local scripts/import-customers.mts",
     "tuo:laskut": "tsx --env-file-if-exists=.env.local scripts/import-fennoa-invoices.mts",
     "joutsa:hinnasto": "tsx --env-file-if-exists=.env.local scripts/joutsa-hinnasto.mts",
+    "tuotteet:tuo": "tsx --env-file-if-exists=.env.local scripts/import-products.mts",
+    "tuotteet:tarkista": "tsx --env-file-if-exists=.env.local scripts/check-products.mts",
     "joutsa:alueet": "tsx --env-file-if-exists=.env.local scripts/joutsa-alueet.mts",
     "vertaa:laskut": "tsx --env-file-if-exists=.env.local scripts/compare-fennoa.mts",
     "kayttaja:lisaa": "tsx --env-file-if-exists=.env.local scripts/add-user.mts",

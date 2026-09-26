@@ -192,3 +192,14 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 - QR-koodi tehdään qrcode-kirjastolla (npm, vakiintunut) PNG- ja SVG-muodossa. Se ei tuonut uusia haavoittuvuuksia npm auditiin.
 
 **Ohjelinkki jokaiselle sivulle (Jukka 26.9.2026).** Henkilökunnan kehyksen oikeassa yläkulmassa on Ohje-linkki, joka avaa sivun toiminnon ohjeen uuteen välilehteen, jotta kesken oleva työ ei katoa. Linkki vie ohjeen oikeaan osioon, kun sivu vastaa osiota (esimerkiksi vuokralaisen vaihdos). Sivujen ja ohjeiden kartta on yhdessä tiedostossa (`src/lib/help/routes.ts`). Testi käy läpi kaikki henkilökunnan sivut ja kaatuu, jos jollekin puuttuu ohje, joten myös tulevat toiminnot saavat ohjelinkin. Samalla lisättiin selkokieliset ohjeet työpöydälle, hinnastolle ja asetuksille.
+
+**Tuoterekisteri, tilit ja laskentakohteet (0024, Jukka 26.9.2026).** Joutsan Fennoan tuotelistassa on jo kirjanpitotili ja kustannuspaikka (laskentakohde) jokaiselle tuotteelle. Laskentakohteita on kolme: 1 Puhdasvesi, 2 Jätevesi ja 4 Avustus vesihuoltolaitosten yhdistyminen. Tuotteet, tilit ja laskentakohteet tallennetaan omiin tauluihinsa.
+- Tuote valitaan laskuriville säännöillä: maksulaji, liittymä, perusmaksuluokka, alue, asiakasryhmä ja onko mittaria. Tyhjä ehto sopii kaikkiin, ja tarkimmin sopiva voittaa. Näin esimerkiksi kunnan tuote (asiakasryhmä kunta) ja Rutalahden tuote (alue) valitaan ilman erillisiä hintarivejä.
+- Joutsan säännöt päätellään tuotenimistä (`src/lib/products/joutsa.ts`).
+- Tuotekoodi, tili ja laskentakohde tallennetaan laskuriville laskentahetkellä, jotta hyväksytty lasku ei muutu, jos tuotetta myöhemmin muutetaan.
+- Fennoaan rivi viedään kentillä product_no ja account_code (Fennoa ottaa tilin vain tuotteelliselta riviltä). Laskentakohde viedään dimensiona vasta, kun sen dimensiotyyppi (esim. dim1) on asetettu. Siihen asti Fennoa käyttää tuotteen omaa laskentakohdetta, koska tuotteet ovat Fennoassa samoilla koodeilla.
+- Jos organisaatiolla on tuotteita mutta rivi jää ilman, laskulle tulee huomautus.
+- Leivonmäen tuotteet jäävät käsin valittaviksi, kunnes tiedetään, mitkä kiinteistöt ovat Leivonmäellä (BLOCKERS 18).
+
+**Kehitystoiveet (0025, Jukka 26.9.2026).** Käyttäjät jättävät kehitystoiveita, ja jokainen toive kohdistetaan toimintoon. Toiminnot ovat samat kuin ohjesivuston aiheet, joten toiveet, ohjeet ja sivut ryhmittyvät samalla tavalla. Jokaisella henkilökunnan sivulla on Ohje-linkin vieressä Kehitystoive-linkki, joka täyttää toiminnon ja sivun valmiiksi. Myös jokaisella ohjesivulla on linkki. Käyttöoikeudet tarkennetaan myöhemmin. Aluksi kaikki organisaation jäsenet näkevät organisaation toiveet ja voivat jättää omia, ja tilaa ja vastausta muuttavat pääkäyttäjä ja toimisto.
+

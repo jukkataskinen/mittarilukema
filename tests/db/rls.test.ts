@@ -27,6 +27,10 @@ const TABLES = [
   "ml_meter_swap_batches",
   "ml_meter_swap_rows",
   "ml_change_requests",
+  "ml_accounts",
+  "ml_cost_centers",
+  "ml_products",
+  "ml_feature_requests",
 ];
 // Laskutusajon taulut testataan tiedostossa billing-run.test.ts.
 
@@ -64,6 +68,13 @@ beforeAll(async () => {
         "insert into ml_legacy_billed_estimates (organization_id, property_id, month, connection_kind, m3, net_eur, gross_eur, source) values ($1, $2, '2026-01-01', 'water', 2, 4.1, 5.14, 'invoice')",
         [org.id, org.property],
       );
+      await tx.query(
+        "insert into ml_feature_requests (organization_id, created_by, feature, title, description) values ($1, $2, 'laskutus', 'Toive', 'Kuvaus')",
+        [org.id, org.staff.id],
+      );
+      await tx.query("insert into ml_accounts (organization_id, code) values ($1, '3000')", [org.id]);
+      await tx.query("insert into ml_cost_centers (organization_id, code, name) values ($1, '1', 'Puhdasvesi')", [org.id]);
+      await tx.query("insert into ml_products (organization_id, code, name) values ($1, '1000', 'Veden perusmaksu')", [org.id]);
       await tx.query("insert into ml_change_requests (organization_id, kind, place_text, submitter_name) values ($1, 'other', 'Testitie 1', 'Testi')", [org.id]);
       const [sb] = await tx.query<{ id: string }>("insert into ml_meter_swap_batches (organization_id, name) values ($1, 'Erä') returning id", [org.id]);
       await tx.query("insert into ml_meter_swap_rows (organization_id, batch_id, row_no, raw) values ($1, $2, 2, '{}')", [org.id, sb.id]);

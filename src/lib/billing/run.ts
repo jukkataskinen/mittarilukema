@@ -4,6 +4,7 @@ import { billingMonths, calculateBill, estimateAnnualM3, type BilledEstimate, ty
 import { loadOrgBillingData } from "./load";
 import { invoiceInfo } from "./info";
 import { changeBoundaries, partiesOn, splitByParty, type PartyContract } from "./parties";
+import { loadProducts, resolveProduct, toResolved } from "@/lib/products";
 
 export class BillingRunError extends Error {}
 
@@ -62,6 +63,12 @@ export async function createBillingRun(
   );
 
   const { properties, tariffs, estimateBasis } = await loadOrgBillingData(tx, orgId);
+  // Tuote, tili ja laskentakohde riveille (0024). Asiakasryhmä valitsee esim. kunnan tuotteet.
+  const products = await loadProducts(tx, orgId);
+  const customerGroups = new Map(
+    (await tx.query<{ id: string; customer_group: string | null }>("select id, customer_group from ml_customers where organization_id = $1 and customer_group is not null", [orgId]))
+      .map((c) => [c.id, c.customer_group]),
+  );
   const contracts = await tx.query<PartyContract & { property_id: string }>(
     `select id, property_id, customer_id, role, starts_on::text, ends_on::text, tenant_components from ml_contracts
       where organization_id = $1 and billed and starts_on <= $3 and (ends_on is null or ends_on > $2)`,
@@ -114,6 +121,7 @@ export async function createBillingRun(
   const lines: {
     key: string; line_no: number; kind: string; connection_kind: string | null; description: string; quantity: number; unit: string;
     unit_price: number; vat_percent: number; net_eur: number; vat_eur: number; price_includes_vat: boolean;
+    product_code: string | null; account_code: string | null; cost_center_code: string | null;
   }[] = [];
 
   for (const p of properties.values()) {
@@ -171,13 +179,25 @@ export async function createBillingRun(
           info: [periodNote, roleNote, kindNote, part.primary ? readingInfo : ""].filter(Boolean).join("\n") || null,
           estimate_annual_m3: annual, estimate_source: estimateSource,
         });
-        part.lines.forEach((l, i) =>
+        const lineCtx = {
+          areaId: p.areaId,
+          customerGroup: part.customerId ? (customerGroups.get(part.customerId) ?? null) : null,
+          metered: p.meters.some((m) => m.installedOn <= e0 && (m.removedOn === null || m.removedOn > s0)),
+        };
+        part.lines.forEach((l, i) => {
+          const prod = toResolved(products.length ? resolveProduct(products, l, lineCtx) : null);
           lines.push({
             key, line_no: i + 1, kind: l.kind, connection_kind: l.connectionKind, description: l.description,
             quantity: l.quantity, unit: l.unit, unit_price: l.unitPrice, vat_percent: l.vatPercent, net_eur: l.net,
             vat_eur: Math.round(l.vat * 100) / 100, price_includes_vat: l.priceIncludesVat,
-          }),
-        );
+            product_code: prod.productCode, account_code: prod.accountCode, cost_center_code: prod.costCenterCode,
+          });
+        });
+        // Organisaatiolla on tuoterekisteri, mutta rivi jäi ilman tuotetta: kirjanpito tarvitsee sen.
+        const unmatched = products.length ? part.lines.filter((l) => !resolveProduct(products, l, lineCtx)).map((l) => l.description) : [];
+        if (unmatched.length) {
+          invoices[invoices.length - 1].issues.push(`Riville ei löytynyt tuotetta (${[...new Set(unmatched)].join(", ")}). Tarkista tuoterekisterin säännöt.`);
+        }
       }
     };
 
@@ -233,11 +253,12 @@ export async function createBillingRun(
     if (lines.length) {
       await tx.query(
         `insert into ml_invoice_lines (organization_id, invoice_id, line_no, kind, connection_kind, description, quantity, unit, unit_price, vat_percent, net_eur,
-                                       vat_eur, price_includes_vat)
+                                       vat_eur, price_includes_vat, product_code, account_code, cost_center_code)
          select $1, x.invoice_id, x.line_no, x.kind, x.connection_kind, x.description, x.quantity, x.unit, x.unit_price, x.vat_percent, x.net_eur,
-                x.vat_eur, x.price_includes_vat
+                x.vat_eur, x.price_includes_vat, x.product_code, x.account_code, x.cost_center_code
            from json_to_recordset($2::json) as x(invoice_id uuid, line_no smallint, kind text, connection_kind text, description text,
-                quantity numeric, unit text, unit_price numeric, vat_percent numeric, net_eur numeric, vat_eur numeric, price_includes_vat boolean)`,
+                quantity numeric, unit text, unit_price numeric, vat_percent numeric, net_eur numeric, vat_eur numeric, price_includes_vat boolean,
+                product_code text, account_code text, cost_center_code text)`,
         [orgId, JSON.stringify(lines.map((l) => ({ ...l, invoice_id: idOf.get(l.key) })))],
       );
     }

@@ -23,16 +23,18 @@ const ROUTES: { pattern: RegExp; slug: string; section?: string }[] = [
   { pattern: /^\/laskutus/, slug: "laskutus", section: "Laskutusajo" },
   { pattern: /^\/tiedotteet/, slug: "tiedotteet" },
   { pattern: /^\/hinnasto/, slug: "hinnasto" },
+  { pattern: /^\/tuotteet/, slug: "tuotteet" },
   { pattern: /^\/asetukset/, slug: "asetukset" },
+  { pattern: /^\/kehitystoiveet/, slug: "kehitystoiveet" },
 ];
 
 /** Sivun ohje: otsikko ja osoite (osioon asti, jos sivu vastaa ohjeen osiota). */
-export function helpFor(pathname: string): { title: string; href: string } | null {
+export function helpFor(pathname: string): { slug: string; title: string; href: string } | null {
   const route = ROUTES.find((r) => r.pattern.test(pathname));
   const topic = route ? HELP_TOPICS.find((t) => t.slug === route.slug) : null;
   if (!route || !topic) return null;
   const section = route.section && topic.sections.some((s) => s.title === route.section) ? `#${sectionId(route.section)}` : "";
-  return { title: topic.title, href: `/ohjeet/${topic.slug}${section}` };
+  return { slug: topic.slug, title: topic.title, href: `/ohjeet/${topic.slug}${section}` };
 }
 
 export const HELP_ROUTE_SLUGS = ROUTES.map((r) => ({ slug: r.slug, section: r.section ?? null }));
