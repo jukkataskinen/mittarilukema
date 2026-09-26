@@ -101,7 +101,7 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Vaihe 2: omistajanvaihdos ja vuokralaisen vaihdos ohjattuina toimintoina: pakollinen lukema, lainan kohtalo, uusi asiakas samalla lomakkeella, lainat ja tapahtumat kiinteistön sivulla; loppulasku seuraavassa laskutusajossa
 - [x] Vaihe 3: mittarinvaihto (loppu- ja aloituslukema, tarkistukset, tapahtuma) ja etäluettavien vaihtokampanja CSV-erinä tiloineen (0022, Mittarinvaihdot)
 - [x] Vaihe 4: käyttöpaikan aikajana: kaistat osapuolista ja mittareista, tapahtumajana (sopimukset, mittarit, lukemat, hyväksytyt laskut, vaihdokset) suodattimin
-- [ ] Vaihe 5: asiakkaan muutosilmoitus (lomake ja QR)
+- [x] Vaihe 5: asiakkaan muutosilmoitus: julkinen lomake ja QR-koodi, toimiston jono, kohdistus ja esitäytetty vaihdos (0023)
 
 ### Ohjeet
 - [x] Julkinen ohjesivusto /ohjeet: etusivuna toiminnot (sopii myyntiesittelyyn), jokaisesta toiminnosta oma ohje (src/lib/help/topics.ts)

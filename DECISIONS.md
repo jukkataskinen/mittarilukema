@@ -180,3 +180,13 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 **Ohjeet julkisina (Jukka 26.9.2026).** Ohjesivuston etusivu esittelee järjestelmän toiminnot, ja jokaisesta toiminnosta pääsee sen ohjeeseen. Sivut ovat julkisia (/ohjeet), jotta niitä voi näyttää myyntitilanteessa ilman kirjautumista. Siksi niissä ei ole asiakastietoja eikä kuvakaappauksia oikeasta datasta. Sisältö on yhdessä tiedostossa (`src/lib/help/topics.ts`) ja päivitetään toimintojen mukana. Kehitteillä olevat toiminnot (aikajana, muutosilmoitus) on merkitty "Tulossa", jottei esittelyssä luvata valmista.
 
 **Käyttöpaikan aikajana (vaihe 4).** Kiinteistön aikajana yhdistää sopimukset, liittymät, mittarit, lukemat, hyväksytyt laskut ja vaihdostapahtumat. Yläosan kaistat näyttävät, kuka oli omistaja ja vuokralainen ja mikä mittari oli käytössä milloinkin. Aikajana kootaan olemassa olevista tauluista eikä omaa tallennusta tarvita, joten se on aina ajan tasalla. Vaihdostapahtuma kokoaa tekemänsä sopimus- ja mittarimuutokset, jottei samaa asiaa näytetä kahdesti. Luonnosajojen laskut jätetään pois, koska ne eivät ole lähteneet asiakkaalle.
+
+**Asiakkaan muutosilmoitus (vaihe 5, 0023).** Asiakas ilmoittaa kaupasta, vuokralaisen muutosta, laskutustietojen muutoksesta tai muusta asiasta julkisella lomakkeella. Lomakkeelle pääsee QR-koodilla laskusta tai tiedotteesta.
+- Lomake on organisaatiokohtainen (satunnainen tunnus), eikä se näytä rekisteristä mitään. Henkilökohtaista linkkiä ei tarvita, ja lomakkeen voi jakaa vapaasti. Toimisto kohdistaa ilmoituksen käyttöpaikkaan.
+- Ilmoituksesta avataan omistajanvaihdos tai vuokralaisen vaihdos valmiiksi täytettynä. Kun vaihdos kirjataan, ilmoitus merkitään käsitellyksi samassa transaktiossa ja liitetään tapahtumaan.
+- Ilmoitettu luovutus- tai muuttopäivä on vaihtopäivä: lukema otetaan sinä päivänä, ja uusi osapuoli maksaa seuraavasta päivästä.
+- Väärinkäytön esto: ansakenttä (robotti saa saman kiitossivun), enintään viisi ilmoitusta tunnissa samasta IP-osoitteesta ja 200 vuorokaudessa organisaatiolle. IP-osoitteesta tallennetaan vain suolattu tiiviste. Pääkäyttäjä voi vaihtaa lomakkeen osoitteen.
+- Henkilötunnus torjutaan lomakkeella.
+- Ilmoitukset näkevät vain pääkäyttäjä ja toimisto (RLS), eivät mittarinlukijat.
+- Toimiston sähköpostiin lähtee ilmoituksesta vain laji ja linkki, ei henkilötietoja.
+- QR-koodi tehdään qrcode-kirjastolla (npm, vakiintunut) PNG- ja SVG-muodossa. Se ei tuonut uusia haavoittuvuuksia npm auditiin.

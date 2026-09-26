@@ -10,6 +10,7 @@ import { parseReading } from "@/lib/readings/checks";
 import { normalizePhone } from "@/lib/validation/phone";
 import { audit } from "@/lib/audit";
 import { ChangeError, changeOwner, changeTenant, confirmLoanTransfer } from "@/lib/registry/changes";
+import { closeRequest } from "@/lib/change-requests";
 import { MeterSwapError, swapMeter } from "@/lib/meters/swap";
 import { isoDateHelsinki } from "@/lib/format";
 
@@ -62,6 +63,19 @@ function readingsFrom(formData: FormData, back: string) {
   return out;
 }
 
+// Virheen jälkeen lomake palaa samaan ilmoitukseen, jotta esitäyttö säilyy.
+const requestQuery = (formData: FormData) => {
+  const id = z.string().uuid().safeParse(formData.get("requestId"));
+  return id.success ? `?ilmoitus=${id.data}` : "";
+};
+
+/** Muutosilmoituksesta aloitettu vaihdos merkitsee ilmoituksen käsitellyksi samassa transaktiossa. */
+async function closeFromRequest(tx: Sql, orgId: string, userId: string, formData: FormData, eventId: string) {
+  const requestId = z.string().uuid().safeParse(formData.get("requestId"));
+  if (!requestId.success) return;
+  await closeRequest(tx, { organizationId: orgId, userId, id: requestId.data, status: "done", eventId, note: "Kirjattu vaihdostoiminnolla." });
+}
+
 const ownerSchema = partySchema.extend({
   propertyId: z.string().uuid(),
   date: date("Anna vaihtopäivä."),
@@ -73,17 +87,19 @@ const ownerSchema = partySchema.extend({
 export async function changeOwnerAction(formData: FormData) {
   const ctx = await requireRole("owner", "staff");
   const propertyId = String(formData.get("propertyId") ?? "");
-  const back = `/kiinteistot/${propertyId}/omistajanvaihdos`;
+  const back = `/kiinteistot/${propertyId}/omistajanvaihdos${requestQuery(formData)}`;
   const input = parseForm(ownerSchema, formData, back);
   const readings = readingsFrom(formData, back);
   let result: { needsReview: number } = { needsReview: 0 };
   try {
     result = await ctx.run(async (tx) => {
       const newCustomerId = await resolveParty(tx, ctx.org.organizationId, ctx.user.id, input, back);
-      return changeOwner(tx, {
+      const res = await changeOwner(tx, {
         organizationId: ctx.org.organizationId, userId: ctx.user.id, propertyId: input.propertyId, date: input.date, newCustomerId, readings,
         loanDecision: input.loanDecision, endTenant: input.endTenant, notes: input.notes,
       });
+      await closeFromRequest(tx, ctx.org.organizationId, ctx.user.id, formData, res.eventId);
+      return res;
     });
   } catch (err) {
     if (err instanceof ChangeError) fail(back, err.message);
@@ -105,7 +121,7 @@ const tenantSchema = partySchema.extend({
 export async function changeTenantAction(formData: FormData) {
   const ctx = await requireRole("owner", "staff");
   const propertyId = String(formData.get("propertyId") ?? "");
-  const back = `/kiinteistot/${propertyId}/vuokralainen`;
+  const back = `/kiinteistot/${propertyId}/vuokralainen${requestQuery(formData)}`;
   const input = parseForm(tenantSchema, formData, back);
   const components = z.array(z.enum(["usage", "basic_fee", "other_fee"])).safeParse(formData.getAll("tenantComponents"));
   const readings = readingsFrom(formData, back);
@@ -114,10 +130,12 @@ export async function changeTenantAction(formData: FormData) {
     result = await ctx.run(async (tx) => {
       // Tyhjä valinta = ei uutta vuokralaista (vain poismuutto).
       const newCustomerId = input.customerId ? await resolveParty(tx, ctx.org.organizationId, ctx.user.id, input, back) : null;
-      return changeTenant(tx, {
+      const res = await changeTenant(tx, {
         organizationId: ctx.org.organizationId, userId: ctx.user.id, propertyId: input.propertyId, date: input.date, endCurrent: input.endCurrent,
         newCustomerId, components: components.success ? components.data : [], readings, notes: input.notes,
       });
+      await closeFromRequest(tx, ctx.org.organizationId, ctx.user.id, formData, res.eventId);
+      return res;
     });
   } catch (err) {
     if (err instanceof ChangeError) fail(back, err.message);

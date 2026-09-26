@@ -44,6 +44,8 @@ src/app/kirjaudu/         kirjautuminen
 src/lib/db/               kantakerros (PGlite / Postgres)
 src/lib/auth/             istunto, käyttäjä ja roolit
 src/app/lukema/[token]/   julkinen lukemalomake (linkki, ei kirjautumista)
+src/app/ilmoitus/[token]/ julkinen muutosilmoituslomake (organisaation tunnus, ei kirjautumista)
+src/lib/change-requests/  muutosilmoitusten tarkistus, lähetysrajat, käsittely ja QR-koodi
 src/app/ohjeet/           julkiset ohjeet ja toimintojen esittely (sisältö src/lib/help/topics.ts)
 src/app/api/              linkkien CSV-lataus, tekstiviestien vastaanotto
 src/lib/registry/         rekisterin kyselyt
@@ -59,7 +61,7 @@ src/lib/meters/           mittarinvaihto (swap) ja vaihtokampanjan erät (campai
 src/lib/registry/changes  omistajanvaihdos ja vuokralaisen vaihdos
 scripts/karkinen/         Kärkisen aineiston jäsennys
 src/lib/members.ts        käyttäjien lisäys ja roolit
-supabase/migrations/      0001–0022 (ks. tiedostojen otsikot)
+supabase/migrations/      0001–0023 (ks. tiedostojen otsikot)
 tests/db/                 RLS- ja kantatestit (tests/helpers/db.ts: freshDb, seedOrg)
 tests/unit/               puhdas logiikka
 scripts/                  kannan ylläpito, tuonnit, Joutsan hinnasto ja alueet, vertailu

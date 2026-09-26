@@ -11,10 +11,14 @@ export const metadata = { title: "Työpöytä" };
 export default async function Dashboard() {
   const ctx = await requireStaff();
   const orgId = ctx.org.organizationId;
-  const { stats, review, rounds, org } = await ctx.run(async (tx) => ({
+  const { stats, review, rounds, org, openRequests } = await ctx.run(async (tx) => ({
     stats: await dashboardStats(tx, orgId),
     review: await listReadings(tx, orgId, { status: "needs_review", limit: 10 }),
     rounds: (await listRounds(tx, orgId)).filter((r) => r.status === "open"),
+    // Mittarinlukija ei näe ilmoituksia (RLS), joten määrä on silloin nolla.
+    openRequests: (
+      await tx.query<{ n: number }>("select count(*)::int as n from ml_change_requests where organization_id = $1 and status in ('new', 'in_progress')", [orgId])
+    )[0].n,
     org: (
       await tx.query<{ billing_method: string; billing_months: number[]; settlement_month: number | null }>(
         "select billing_method, billing_months, settlement_month from ml_organizations where id = $1",
@@ -31,6 +35,15 @@ export default async function Dashboard() {
   return (
     <>
       <PageHeader title={ctx.org.organizationName} subtitle={billing} />
+      {openRequests ? (
+        <div className="mb-5">
+          <Notice tone="info" title={`Avoimia muutosilmoituksia ${openRequests}`}>
+            <Link href="/muutosilmoitukset" className="font-semibold text-sky">
+              Käsittele ilmoitukset
+            </Link>
+          </Notice>
+        </div>
+      ) : null}
 
       {stats.properties === 0 ? (
         <EmptyState

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Button, Field, Input, PageHeader, Panel, SectionTitle, Textarea } from "@/components/ui";
+import { Button, Field, Input, Notice, PageHeader, Panel, SectionTitle, Textarea } from "@/components/ui";
 import { FormError } from "@/components/FormError";
 import { requireRole } from "@/lib/auth/current-user";
 import { formatDate, isoDateHelsinki } from "@/lib/format";
@@ -8,27 +8,37 @@ import { TENANT_COMPONENT_LABEL, TENANT_COMPONENTS, type TenantComponent } from 
 import { changeTenantAction } from "../../changeActions";
 import { PartyFields, ReadingFields } from "../ChangeFields";
 import { loadChangeContext } from "../changeContext";
+import { openRequestFor } from "@/lib/change-requests";
 
 export const metadata = { title: "Vuokralaisen vaihdos" };
 
-export default async function TenantChangePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ virhe?: string }> }) {
+export default async function TenantChangePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ virhe?: string; ilmoitus?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const ctx = await requireRole("owner", "staff");
   const today = isoDateHelsinki();
   const data = await ctx.run(async (tx) => {
     const c = await loadChangeContext(tx, ctx.org.organizationId, id, today);
-    return c ? { ...c, meters: await metersOn(tx, id, today) } : null;
+    return c ? { ...c, meters: await metersOn(tx, id, today), fromRequest: await openRequestFor(tx, ctx.org.organizationId, sp.ilmoitus, id) } : null;
   });
   if (!data) notFound();
-  const { property, owner, tenant, customers, meters } = data;
+  const { property, owner, tenant, customers, meters, fromRequest } = data;
+  const req = fromRequest?.request;
 
   return (
     <div className="max-w-3xl">
       <PageHeader title="Vuokralaisen vaihdos" subtitle={property.street_address} back={{ href: `/kiinteistot/${id}`, label: property.street_address }} />
       <FormError message={sp.virhe} />
+      {req ? (
+        <div className="mb-5">
+          <Notice tone="info" title="Lomake on täytetty asiakkaan muutosilmoituksen tiedoilla.">
+            Tarkista tiedot ennen kirjausta. Ilmoitettu muuttopäivä on vaihtopäivä.
+          </Notice>
+        </div>
+      ) : null}
       <form action={changeTenantAction} className="grid gap-8">
         <input type="hidden" name="propertyId" value={id} />
+        {req ? <input type="hidden" name="requestId" value={req.id} /> : null}
         <Panel>
           <SectionTitle>1. Vaihtopäivä</SectionTitle>
           <p className="mb-4 text-sm">
@@ -46,7 +56,7 @@ export default async function TenantChangePage({ params, searchParams }: { param
             htmlFor="date"
             hint="Lähtevän vuokralaisen viimeinen päivä. Uuden käyttösopimus alkaa seuraavana päivänä. Kun vuokralaista ei ole, omistaja maksaa kaiken."
           >
-            <Input id="date" name="date" type="date" defaultValue={today} required />
+            <Input id="date" name="date" type="date" defaultValue={req?.change_date ?? today} required />
           </Field>
           {tenant ? (
             <label className="mt-4 flex items-center gap-2 text-sm">
@@ -61,6 +71,7 @@ export default async function TenantChangePage({ params, searchParams }: { param
             label="Uusi vuokralainen"
             customers={customers.filter((c) => c.id !== owner?.customer_id && c.id !== tenant?.customer_id)}
             optional="Ei uutta vuokralaista (vain poismuutto)"
+            prefill={req?.kind === "move_in" ? fromRequest?.party : null}
           />
           <fieldset className="mt-4 text-sm">
             <legend className="mb-1 font-semibold">Käyttösopimus: vuokralainen maksaa</legend>
@@ -78,7 +89,7 @@ export default async function TenantChangePage({ params, searchParams }: { param
         <Panel>
           <SectionTitle>3. Lukema vaihtopäivältä</SectionTitle>
           <p className="mb-4 text-sm text-ink/70">Lukema on pakollinen: sillä kulutus jaetaan lähtevän ja tulevan maksajan kesken.</p>
-          <ReadingFields meters={meters} />
+          <ReadingFields meters={meters} prefill={fromRequest?.reading} />
         </Panel>
 
         <Panel>

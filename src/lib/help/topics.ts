@@ -424,14 +424,48 @@ export const HELP_TOPICS: HelpTopic[] = [
   },
   {
     slug: "muutosilmoitus",
-    group: "Hallinta ja tietoturva",
+    group: "Viestintä",
     icon: "pen",
     title: "Asiakkaan muutosilmoitus",
-    summary: "Asiakas ilmoittaa muutosta, kaupasta tai uudesta laskutusosoitteesta itse lomakkeella tai QR-koodilla.",
-    highlights: ["Ilmoitus tulee toimistolle käsiteltäväksi", "Lukema samalla ilmoituksella", "QR-koodi laskuun tai tiedotteeseen"],
-    upcoming: true,
-    sections: [{ title: "Tilanne", text: "Kehitteillä. Siihen asti muutokset kirjataan kiinteistön sivulla omistajanvaihdoksena tai vuokralaisen vaihdoksena." }],
-    related: ["omistajanvaihdos"],
+    summary: "Asiakas ilmoittaa kaupasta, muutosta tai uusista laskutustiedoista itse lomakkeella tai QR-koodilla, ja toimisto kirjaa sen parilla painalluksella.",
+    highlights: [
+      "QR-koodi laskuun tai tiedotteeseen",
+      "Lukema ja lainan kohtalo samalla ilmoituksella",
+      "Vaihdoslomake täyttyy ilmoituksen tiedoilla",
+    ],
+    appPath: "/muutosilmoitukset",
+    appLabel: "Muutosilmoitukset",
+    sections: [
+      {
+        title: "Lomake asiakkaille",
+        bullets: [
+          "Lomakkeen osoite ja QR-koodi ovat Muutosilmoitukset-sivulla. QR-koodin voi ladata PNG-kuvana laskupohjaan tai SVG-kuvana painettavaan tiedotteeseen.",
+          "Asiakas valitsee ilmoituksen: kiinteistö on myyty, vuokralainen muuttaa sisään tai pois, laskutustiedot muuttuvat tai muu asia. Lomake kysyy vain kyseiseen ilmoitukseen tarvittavat tiedot.",
+          "Kaupassa kysytään ostaja, luovutuspäivä, lukema ja se, siirtyykö liittymän laina kauppakirjan mukaan ostajalle.",
+          "Lomake ei näytä rekisteristä mitään, joten sen voi jakaa vapaasti.",
+        ],
+      },
+      {
+        title: "Ilmoituksen käsittely",
+        steps: [
+          "Uudet ilmoitukset näkyvät työpöydällä ja Muutosilmoitukset-sivulla. Toimiston sähköpostiin tulee ilmoitus, jos yhteystiedoissa on sähköpostiosoite.",
+          "Avaa ilmoitus ja kohdista se käyttöpaikkaan. Osoitteen perusteella tehty ehdotus on listan alussa.",
+          "Valitse Kirjaa omistajanvaihdos tai Kirjaa vuokralaisen vaihdos. Lomake on valmiiksi täytetty: vaihtopäivä, uusi asiakas, lukema ja lainan kohtalo.",
+          "Tarkista tiedot ja kirjaa. Ilmoitus merkitään samalla käsitellyksi ja liitetään käyttöpaikan tapahtumaan.",
+          "Laskutustietojen muutoksessa päivitä asiakkaan tiedot ja merkitse ilmoitus käsitellyksi. Hylkäyksessä kirjoitetaan syy.",
+        ],
+      },
+      {
+        title: "Tietosuoja ja väärinkäytön esto",
+        bullets: [
+          "Lomake ei hyväksy henkilötunnusta.",
+          "Samasta osoitteesta voi lähettää enintään viisi ilmoitusta tunnissa. Robotit pysäytetään ansakentällä.",
+          "Ilmoitukset näkevät vain pääkäyttäjä ja toimisto, eivät mittarinlukijat.",
+          "Jos lomake joutuu roskapostin kohteeksi, pääkäyttäjä voi vaihtaa sen osoitteen. Vanha osoite ja QR-koodi lakkaavat silloin toimimasta.",
+        ],
+      },
+    ],
+    related: ["omistajanvaihdos", "aikajana"],
   },
 ];
 

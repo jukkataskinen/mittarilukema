@@ -15,6 +15,7 @@ export const STAFF_NAV: NavItem[] = [
   { href: "/asiakkaat", label: "Asiakkaat", icon: "users" },
   { href: "/lukemat", label: "Lukemat", icon: "droplet" },
   { href: "/mittarinvaihdot", label: "Mittarinvaihdot", icon: "wrench", roles: ["owner", "staff"] },
+  { href: "/muutosilmoitukset", label: "Muutosilmoitukset", icon: "pen", roles: ["owner", "staff"] },
   { href: "/laskutus", label: "Laskutus", icon: "registry", roles: ["owner", "staff"] },
   { href: "/tiedotteet", label: "Tiedotteet", icon: "megaphone", roles: ["owner", "staff"] },
 ];
