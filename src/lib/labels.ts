@@ -2,7 +2,9 @@
 
 export const CONNECTION_KIND: Record<string, string> = { water: "Vesi", wastewater: "Jätevesi" };
 export const READ_METHOD: Record<string, string> = { remote: "Etäluettava", mechanical: "Mekaaninen" };
+// Liittymissopimus tehdään omistajan, käyttösopimus vuokralaisen kanssa (DECISIONS 26.9.2026).
 export const CONTRACT_ROLE: Record<string, string> = { owner: "Omistaja", tenant: "Vuokralainen" };
+export const CONTRACT_TYPE: Record<string, string> = { owner: "Liittymissopimus", tenant: "Käyttösopimus" };
 export const CUSTOMER_KIND: Record<string, string> = { person: "Henkilö", company: "Yritys tai yhteisö" };
 export const BILLING_METHOD: Record<string, string> = {
   actual: "Toteutunut kulutus",

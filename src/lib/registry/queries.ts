@@ -59,7 +59,7 @@ export function listProperties(tx: Sql, orgId: string, opts: { q?: string; areaI
     `select p.id, p.street_address, p.postal_code, p.city, a.name as area_name,
             (select cu.name from ml_contracts c join ml_customers cu on cu.id = c.customer_id
               where c.property_id = p.id and c.billed and c.starts_on <= current_date
-                and (c.ends_on is null or c.ends_on >= current_date) limit 1) as payer,
+                and (c.ends_on is null or c.ends_on >= current_date) order by c.role desc limit 1) as payer,
             (select array_agg(kind order by kind) from ml_connections k where k.property_id = p.id and k.disconnected_on is null) as connections,
             (select array_agg(m.meter_number order by m.meter_number) from ml_meters m
                join ml_connections k on k.id = m.connection_id
@@ -148,8 +148,9 @@ export async function getProperty(tx: Sql, orgId: string, id: string) {
     billed: boolean;
     starts_on: string;
     ends_on: string | null;
+    tenant_components: string[];
   }>(
-    `select c.id, c.customer_id, cu.name as customer_name, c.role, c.billed, c.starts_on::text, c.ends_on::text
+    `select c.id, c.customer_id, cu.name as customer_name, c.role, c.billed, c.starts_on::text, c.ends_on::text, c.tenant_components
        from ml_contracts c join ml_customers cu on cu.id = c.customer_id
       where c.property_id = $1 order by c.ends_on nulls first, c.starts_on desc`,
     [id],

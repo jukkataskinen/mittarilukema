@@ -5,7 +5,8 @@ import { Badge, Button, DefinitionList, EmptyState, Field, Input, LinkButton, No
 import { FormError } from "@/components/FormError";
 import { requireStaff } from "@/lib/auth/current-user";
 import { getProperty } from "@/lib/registry/queries";
-import { BILLING_METHOD, CONNECTION_KIND, CONTRACT_ROLE, READ_METHOD } from "@/lib/labels";
+import { BILLING_METHOD, CONNECTION_KIND, CONTRACT_ROLE, CONTRACT_TYPE, READ_METHOD } from "@/lib/labels";
+import { TENANT_COMPONENT_LABEL, TENANT_COMPONENTS, type TenantComponent } from "@/lib/billing/parties";
 import { formatDate, formatNumber, isoDateHelsinki } from "@/lib/format";
 import { ReadingsTable } from "../../lukemat/ReadingsTable";
 import { addReadingAction } from "../../lukemat/actions";
@@ -251,7 +252,7 @@ export default async function PropertyPage({
             <thead>
               <tr>
                 <Th>Asiakas</Th>
-                <Th>Rooli</Th>
+                <Th>Sopimus</Th>
                 <Th>Voimassa</Th>
                 <Th>Laskutus</Th>
                 {canEdit ? <Th /> : null}
@@ -267,11 +268,27 @@ export default async function PropertyPage({
                         {c.customer_name}
                       </Link>
                     </Td>
-                    <Td>{CONTRACT_ROLE[c.role]}</Td>
+                    <Td>
+                      {CONTRACT_TYPE[c.role]}
+                      <span className="block text-xs text-ink/60">{CONTRACT_ROLE[c.role]}</span>
+                    </Td>
                     <Td className="tabular whitespace-nowrap">
                       {formatDate(c.starts_on)} – {c.ends_on ? formatDate(c.ends_on) : ""}
                     </Td>
-                    <Td>{c.billed ? <Badge tone={ended ? "neutral" : "info"}>Maksaja</Badge> : "–"}</Td>
+                    <Td>
+                      {!c.billed ? (
+                        "–"
+                      ) : c.role === "tenant" ? (
+                        <>
+                          <Badge tone={ended ? "neutral" : "info"}>Maksaa</Badge>
+                          <span className="block text-xs text-ink/60">
+                            {c.tenant_components.map((k) => TENANT_COMPONENT_LABEL[k as TenantComponent] ?? k).join(", ")}
+                          </span>
+                        </>
+                      ) : (
+                        <Badge tone={ended ? "neutral" : "info"}>Maksaja</Badge>
+                      )}
+                    </Td>
                     {canEdit ? (
                       <Td className="text-right">
                         {!c.ends_on ? (
@@ -315,10 +332,10 @@ export default async function PropertyPage({
                     ))}
                   </Select>
                 </Field>
-                <Field label="Rooli" htmlFor="role">
+                <Field label="Sopimus" htmlFor="role" hint="Liittymissopimus omistajan, käyttösopimus vuokralaisen kanssa.">
                   <Select id="role" name="role" defaultValue="owner">
-                    <option value="owner">{CONTRACT_ROLE.owner}</option>
-                    <option value="tenant">{CONTRACT_ROLE.tenant}</option>
+                    <option value="owner">{CONTRACT_TYPE.owner} ({CONTRACT_ROLE.owner.toLowerCase()})</option>
+                    <option value="tenant">{CONTRACT_TYPE.tenant} ({CONTRACT_ROLE.tenant.toLowerCase()})</option>
                   </Select>
                 </Field>
                 <Field label="Alkaa" htmlFor="startsOn">
@@ -329,9 +346,22 @@ export default async function PropertyPage({
                     <input type="checkbox" name="billed" defaultChecked className="size-4" /> Laskutetaan tältä asiakkaalta
                   </label>
                   <label className="flex items-center gap-2">
-                    <input type="checkbox" name="endPrevious" defaultChecked className="size-4" /> Päätä edellinen maksaja edelliseen päivään
+                    <input type="checkbox" name="endPrevious" defaultChecked className="size-4" /> Päätä edellinen samanlajinen sopimus edelliseen päivään
                   </label>
                 </div>
+                <fieldset className="sm:col-span-2 text-sm">
+                  <legend className="mb-1 font-semibold">Käyttösopimus: vuokralainen maksaa</legend>
+                  <div className="flex flex-wrap gap-4">
+                    {TENANT_COMPONENTS.map((k) => (
+                      <label key={k} className="flex items-center gap-2">
+                        <input type="checkbox" name="tenantComponents" value={k} defaultChecked={k === "usage"} className="size-4" /> {TENANT_COMPONENT_LABEL[k]}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-ink/55">
+                    Koskee vain käyttösopimusta. Muut osat laskutetaan omistajalta liittymissopimuksen perusteella, lainaosuus lainan velalliselta.
+                  </p>
+                </fieldset>
                 <div className="sm:col-span-2">
                   <Button>Tallenna sopimus</Button>
                 </div>

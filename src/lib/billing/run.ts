@@ -3,14 +3,13 @@ import { audit } from "@/lib/audit";
 import { billingMonths, calculateBill, estimateAnnualM3, type BilledEstimate, type ConnectionKind } from "./calculate";
 import { loadOrgBillingData } from "./load";
 import { invoiceInfo } from "./info";
+import { changeBoundaries, partiesOn, splitByParty, type PartyContract } from "./parties";
 
 export class BillingRunError extends Error {}
 
 const DAY = 86_400_000;
 const addDay = (iso: string) => new Date(Date.parse(`${iso}T12:00:00Z`) + DAY).toISOString().slice(0, 10);
-const dayBefore = (iso: string) => new Date(Date.parse(`${iso}T12:00:00Z`) - DAY).toISOString().slice(0, 10);
-const maxDate = (x: string, y: string) => (x > y ? x : y);
-const minDate = (x: string, y: string) => (x < y ? x : y);
+const round2 = (n: number) => Math.round((n + Math.sign(n) * 1e-9) * 100) / 100;
 const fmt3 = (n: number) => String(Math.round(n * 1000) / 1000).replace(".", ",");
 const fi = (iso: string) => {
   const [y, m, d] = iso.split("-");
@@ -19,11 +18,16 @@ const fi = (iso: string) => {
 
 /**
  * Laskutusajo: jakson lasku jokaiselle kiinteistölle, jolla on jaksolla
- * voimassa oleva liittymä. Maksaja on jakson lopussa voimassa olevan
- * laskutettavan sopimuksen asiakas. Jos maksaja vaihtuu kesken jakson ja
- * vaihtopäivältä on lukema, edelliselle maksajalle tehdään loppulasku
- * vaihtopäivään asti ja uudelle lasku siitä eteenpäin. Muuten lasku jää
- * yhdeksi ja siihen tulee huomautus.
+ * voimassa oleva liittymä. Rivit jaetaan osapuolille (parties.ts):
+ * omistaja liittymissopimuksella, vuokralainen käyttösopimuksen osista ja
+ * lainaosuus lainan velalliselle. Osapuolet ovat jakson lopussa voimassa
+ * olevat; arviolaskussa jakson ensimmäisenä päivänä voimassa olevat, jolloin
+ * kuukausimaksut vaihtuvat vaihtoa seuraavan kuun alusta.
+ *
+ * Jos osapuolet vaihtuvat kesken toteutuneen kulutuksen jakson ja
+ * vaihtopäivältä on lukema, lasku jaetaan vaihtopäivästä. Perusmaksun
+ * kuukausi kuuluu sille, jonka osajaksolle kuun 1. päivä osuu. Muuten lasku
+ * jää yhdeksi ja siihen tulee huomautus.
  *
  * Ajetaan käyttäjän RLS-transaktiossa. Laskut ja rivit tallennetaan
  * joukkokyselyinä, jotta ajo mahtuu palvelinfunktion aikarajaan.
@@ -58,8 +62,8 @@ export async function createBillingRun(
   );
 
   const { properties, tariffs, estimateBasis } = await loadOrgBillingData(tx, orgId);
-  const contracts = await tx.query<{ id: string; property_id: string; customer_id: string; starts_on: string; ends_on: string | null }>(
-    `select id, property_id, customer_id, starts_on::text, ends_on::text from ml_contracts
+  const contracts = await tx.query<PartyContract & { property_id: string }>(
+    `select id, property_id, customer_id, role, starts_on::text, ends_on::text, tenant_components from ml_contracts
       where organization_id = $1 and billed and starts_on <= $3 and (ends_on is null or ends_on > $2)`,
     [orgId, start, end],
   );
@@ -135,73 +139,86 @@ export async function createBillingRun(
         mode: kind, estimateM3: annual !== null ? Math.round(((annual * months) / 12) * 1000) / 1000 : 0, billedEstimates: billed,
         propertyCharges: p.charges, loans: p.loans,
       });
-    const push = (row: Omit<InvoiceRow, "key" | "info">, res: ReturnType<typeof calculateBill>, partial: boolean) => {
-      const key = `${row.property_id}|${row.period_end}`;
+    // Jakson rivit osapuolten laskuiksi. Kulutus, lukemat ja huomautukset tulevat
+    // laskulle, jolla on kulutusrivit (tai ensimmäiselle, jos niitä ei ole).
+    const push = (s0: string, e0: string, res: ReturnType<typeof calculateBill>, partial: boolean, extraIssues: string[]) => {
+      const parties = partiesOn(cs, kind === "estimate" ? addDay(s0) : e0);
+      const split = splitByParty(res.lines, parties, p.loans, cs);
       const readingInfo = kind === "estimate" ? "" : invoiceInfo({ usage: res.usage, meters: p.meters, legacyId: p.legacyId, address: p.streetAddress });
-      const periodNote = partial ? `Laskutusjakso ${fi(addDay(row.period_start))} - ${fi(row.period_end)} (maksajan vaihdos).` : "";
+      const periodNote = partial ? `Laskutusjakso ${fi(addDay(s0))} - ${fi(e0)} (osapuolten vaihdos).` : "";
       const place = p.legacyId ? `Unes: ${p.legacyId} / ${p.streetAddress}` : p.streetAddress;
       const kindNote =
         kind === "estimate" && annual !== null
-          ? `Arviolasku ${fi(addDay(row.period_start))} - ${fi(row.period_end)}: arvioitu vuosikulutus ${fmt3(annual)} m3 (${estimateSource === "history" ? "edellisen vuoden kulutus" : "annettu arvio"}), ${place}`
+          ? `Arviolasku ${fi(addDay(s0))} - ${fi(e0)}: arvioitu vuosikulutus ${fmt3(annual)} m3 (${estimateSource === "history" ? "edellisen vuoden kulutus" : "annettu arvio"}), ${place}`
           : kind === "settlement"
-            ? `Tasaus ${fi(addDay(row.period_start))} - ${fi(row.period_end)}: toteutunut ${fmt3(Math.max(res.waterM3, res.wastewaterM3))} m3, arviolaskuilla laskutettu ${fmt3(billedEstimate)} m3.`
+            ? `Tasaus ${fi(addDay(s0))} - ${fi(e0)}: toteutunut ${fmt3(Math.max(res.waterM3, res.wastewaterM3))} m3, arviolaskuilla laskutettu ${fmt3(billedEstimate)} m3.`
             : "";
-      invoices.push({
-        ...row, key, info: [periodNote, kindNote, readingInfo].filter(Boolean).join("\n") || null,
-        estimate_annual_m3: annual, estimate_source: estimateSource,
-      });
-      res.lines.forEach((l, i) =>
-        lines.push({
-          key, line_no: i + 1, kind: l.kind, connection_kind: l.connectionKind, description: l.description,
-          quantity: l.quantity, unit: l.unit, unit_price: l.unitPrice, vat_percent: l.vatPercent, net_eur: l.net,
-          vat_eur: Math.round(l.vat * 100) / 100, price_includes_vat: l.priceIncludesVat,
-        }),
-      );
+      const issues = [...res.issues, ...extraIssues, ...split.issues];
+      if (!parties.owner && !parties.tenant) issues.push("Laskutettava sopimus puuttuu jakson lopussa.");
+      for (const part of split.invoices) {
+        const key = `${p.propertyId}|${e0}|${part.customerId ?? ""}`;
+        const roleNote =
+          part.role === "tenant" && split.invoices.length > 1 ? `Käyttösopimuksen mukaiset maksut, ${place}` :
+          part.role === "debtor" ? `Lainaosuus, ${place}. Laina ei ole siirtynyt käyttöpaikan uudelle omistajalle.` :
+          part.role === "owner" && split.invoices.length > 1 && !part.primary ? `Liittymissopimuksen mukaiset maksut, ${place}` : "";
+        const net = round2(part.lines.reduce((x, l) => x + l.net, 0));
+        const vat = round2(part.lines.reduce((x, l) => x + l.vat, 0));
+        invoices.push({
+          key, property_id: p.propertyId, customer_id: part.customerId, contract_id: part.contractId, period_start: s0, period_end: e0,
+          water_m3: part.primary ? res.waterM3 : 0, wastewater_m3: part.primary ? res.wastewaterM3 : 0,
+          net_eur: net, vat_eur: vat, gross_eur: round2(net + vat), usage: part.primary ? res.usage : [],
+          issues: part.primary ? issues : [],
+          info: [periodNote, roleNote, kindNote, part.primary ? readingInfo : ""].filter(Boolean).join("\n") || null,
+          estimate_annual_m3: annual, estimate_source: estimateSource,
+        });
+        part.lines.forEach((l, i) =>
+          lines.push({
+            key, line_no: i + 1, kind: l.kind, connection_kind: l.connectionKind, description: l.description,
+            quantity: l.quantity, unit: l.unit, unit_price: l.unitPrice, vat_percent: l.vatPercent, net_eur: l.net,
+            vat_eur: Math.round(l.vat * 100) / 100, price_includes_vat: l.priceIncludesVat,
+          }),
+        );
+      }
     };
 
-    // Maksajan vaihdos jaksolla: jaetaan laskut sopimusten rajoista, jos
-    // vaihtopäivältä on lukema (±14 pv). Muuten yksi lasku ja huomautus.
-    // Vain toteutuneen kulutuksen laskussa; arviolaskun ja tasauksen jako tehdään käsin.
-    if (kind === "actual" && new Set(cs.map((c) => c.customer_id)).size > 1) {
-      const segments = cs.map((c, i) => ({
-        contract: c,
-        s0: i === 0 ? start : maxDate(start, dayBefore(c.starts_on)),
-        e0: i === cs.length - 1 ? end : minDate(end, c.ends_on ?? end),
-      })).filter((g) => g.e0 > g.s0);
+    // Osapuolten vaihdos jaksolla: jaetaan laskut vaihtopäivistä, jos niiltä on
+    // lukema (±14 pv). Muuten yksi lasku ja huomautus. Vain toteutuneen
+    // kulutuksen laskussa; arviolasku seuraa kuukauden ensimmäistä päivää ja
+    // tasauksen jako tehdään käsin.
+    const boundaries = kind === "estimate" ? [] : changeBoundaries(cs, start, end);
+    if (kind === "actual" && boundaries.length) {
+      const ends = [...boundaries, end];
+      const segments = ends.map((e0, i) => ({ s0: i === 0 ? start : ends[i - 1], e0 }));
       const results = segments.map((g, i) => calc(g.s0, g.e0, i === segments.length - 1 ? undefined : 14));
-      const splitOk = segments.length > 1 && results.slice(0, -1).every((r) => !r.issues.some((x) => x.includes("lukema puuttuu")));
+      const splitOk = results.slice(0, -1).every((r) => !r.issues.some((x) => x.includes("lukema puuttuu")));
       if (splitOk) {
-        segments.forEach((g, i) =>
-          push({
-            property_id: p.propertyId, customer_id: g.contract.customer_id, contract_id: g.contract.id, period_start: g.s0, period_end: g.e0,
-            water_m3: results[i].waterM3, wastewater_m3: results[i].wastewaterM3, net_eur: results[i].net, vat_eur: results[i].vat,
-            gross_eur: results[i].gross, usage: results[i].usage, issues: results[i].issues,
-          }, results[i], true),
-        );
+        segments.forEach((g, i) => push(g.s0, g.e0, results[i], true, []));
         continue;
       }
     }
 
     const res = calc(start, end);
-    const payer = cs.find((c) => c.starts_on <= end && (c.ends_on === null || c.ends_on >= end)) ?? null;
-    const issues = [...res.issues].filter((x) => kind !== "estimate" || !x.includes("mittari"));
-    if (!payer) issues.push("Laskutettava sopimus puuttuu jakson lopussa.");
-    if (kind === "estimate" && annual === null && activeConn) issues.push("Vuosikulutusarvio puuttuu: lukemia alle puolelta vuodelta eikä kiinteistölle ole annettu arviota.");
-    if (kind === "settlement" && billedEstimate === 0) issues.push("Tasausjaksolta ei löytynyt hyväksyttyjä arviolaskuja.");
+    const extra: string[] = [];
+    if (kind === "estimate") {
+      // Arviolaskulla mittariin liittyviä huomautuksia ei tarvita.
+      res.issues = res.issues.filter((x) => !x.includes("mittari"));
+      if (annual === null && activeConn) extra.push("Vuosikulutusarvio puuttuu: lukemia alle puolelta vuodelta eikä kiinteistölle ole annettu arviota.");
+    }
+    if (kind === "settlement" && billedEstimate === 0) extra.push("Tasausjaksolta ei löytynyt hyväksyttyjä arviolaskuja.");
     if (kind === "settlement" && reviewEstimates.has(p.propertyId)) {
-      issues.push("Osa vanhan järjestelmän arvioista on päätelty epävarmasti (kuukausi ilman laskua). Tarkista arviot ennen tasausta.");
+      extra.push("Osa vanhan järjestelmän arvioista on päätelty epävarmasti (kuukausi ilman laskua). Tarkista arviot ennen tasausta.");
     }
-    if (new Set(cs.map((c) => c.customer_id)).size > 1) {
-      issues.push("Maksaja vaihtunut jaksolla, eikä vaihtopäivältä ole lukemaa: laskua ei voitu jakaa. Kirjaa vaihtopäivän lukema ja laske uudelleen.");
+    if (kind === "actual" && boundaries.length) {
+      extra.push("Maksaja vaihtunut jaksolla, eikä vaihtopäivältä ole lukemaa: laskua ei voitu jakaa. Kirjaa vaihtopäivän lukema ja laske uudelleen.");
     }
-    push({
-      property_id: p.propertyId, customer_id: payer?.customer_id ?? null, contract_id: payer?.id ?? null, period_start: start, period_end: end,
-      water_m3: res.waterM3, wastewater_m3: res.wastewaterM3, net_eur: res.net, vat_eur: res.vat, gross_eur: res.gross, usage: res.usage, issues,
-    }, res, false);
+    if (kind === "settlement" && boundaries.length) {
+      extra.push("Osapuolet vaihtuneet tasausjaksolla: tasaus laskutettiin jakson lopun osapuolille. Tarkista jako ennen hyväksyntää.");
+    }
+    push(start, end, res, false, extra);
   }
 
   if (invoices.length) {
-    const inserted = await tx.query<{ id: string; property_id: string; period_end: string }>(
+    const inserted = await tx.query<{ id: string; property_id: string; period_end: string; customer_id: string | null }>(
       `insert into ml_invoices (organization_id, run_id, property_id, customer_id, contract_id, period_start, period_end, water_m3, wastewater_m3,
                                 net_eur, vat_eur, gross_eur, usage, issues, info, estimate_annual_m3, estimate_source)
        select $1, $2, x.property_id, x.customer_id, x.contract_id, x.period_start, x.period_end, x.water_m3, x.wastewater_m3,
@@ -209,10 +226,10 @@ export async function createBillingRun(
          from json_to_recordset($3::json) as x(property_id uuid, customer_id uuid, contract_id uuid, period_start date, period_end date,
               water_m3 numeric, wastewater_m3 numeric, net_eur numeric, vat_eur numeric, gross_eur numeric, usage jsonb, issues json, info text,
               estimate_annual_m3 numeric, estimate_source text)
-       returning id, property_id, period_end::text`,
+       returning id, property_id, period_end::text, customer_id`,
       [orgId, run.id, JSON.stringify(invoices)],
     );
-    const idOf = new Map(inserted.map((r) => [`${r.property_id}|${r.period_end}`, r.id]));
+    const idOf = new Map(inserted.map((r) => [`${r.property_id}|${r.period_end}|${r.customer_id ?? ""}`, r.id]));
     if (lines.length) {
       await tx.query(
         `insert into ml_invoice_lines (organization_id, invoice_id, line_no, kind, connection_kind, description, quantity, unit, unit_price, vat_percent, net_eur,

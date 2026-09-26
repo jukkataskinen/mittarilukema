@@ -53,7 +53,8 @@ export async function createRoundLinks(
        left join lateral (
          select c.customer_id from ml_contracts c
           where c.property_id = p.id and c.billed and c.starts_on <= current_date and (c.ends_on is null or c.ends_on >= current_date)
-          limit 1) c on true
+          -- Lukemaa pyydetään ensisijaisesti vuokralaiselta, joka asuu kiinteistöllä.
+          order by c.role desc limit 1) c on true
        left join ml_customers cu on cu.id = c.customer_id
       where m.organization_id = $1 and m.removed_on is null
         and (not $2::boolean or not exists (

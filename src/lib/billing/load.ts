@@ -59,9 +59,11 @@ export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ prop
   );
   const loanRows = await tx.query<{
     property_id: string; balance_eur: string; balance_date: string; monthly_amortization_eur: string; interest_percent: string; final_month: string | null;
+    debtor_customer_id: string | null;
   }>(
-    `select property_id, balance_eur::text, balance_date::text, monthly_amortization_eur::text, interest_percent::text, final_month::text
-       from ml_property_loans where organization_id = $1`,
+    `select property_id, balance_eur::text, balance_date::text, monthly_amortization_eur::text, interest_percent::text, final_month::text,
+            debtor_customer_id
+       from ml_property_loans where organization_id = $1 order by created_at, id`,
     [orgId],
   );
   const [org] = await tx.query<{ estimate_basis: "history" | "manual" }>("select estimate_basis from ml_organizations where id = $1", [orgId]);
@@ -103,7 +105,7 @@ export async function loadOrgBillingData(tx: Sql, orgId: string): Promise<{ prop
   for (const l of loanRows) {
     properties.get(l.property_id)?.loans.push({
       balance: Number(l.balance_eur), balanceDate: l.balance_date, monthlyAmortization: Number(l.monthly_amortization_eur),
-      interestPercent: Number(l.interest_percent), finalMonth: l.final_month,
+      interestPercent: Number(l.interest_percent), finalMonth: l.final_month, debtorCustomerId: l.debtor_customer_id,
     });
   }
   return { properties, tariffs, estimateBasis: org?.estimate_basis ?? "history" };

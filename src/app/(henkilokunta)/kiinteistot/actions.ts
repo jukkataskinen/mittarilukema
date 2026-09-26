@@ -152,31 +152,38 @@ const contractSchema = z.object({
   role: z.enum(["owner", "tenant"]),
   billed: z.preprocess((v) => v === "on", z.boolean()),
   startsOn: date("Anna alkamispäivä."),
-  // Edellisen laskutettavan sopimuksen päättäminen samalla kertaa (omistajanvaihdos).
+  // Edellisen saman lajin laskutettavan sopimuksen päättäminen samalla kertaa.
   endPrevious: z.preprocess((v) => v === "on", z.boolean()),
 });
+// Käyttösopimuksen osat, jotka vuokralainen maksaa (valintaruudut, useita arvoja).
+const tenantComponentsSchema = z.array(z.enum(["usage", "basic_fee", "other_fee"]));
 
 export async function addContractAction(formData: FormData) {
   const ctx = await requireRole("owner", "staff");
   const input = parseForm(contractSchema, formData, "/kiinteistot");
   const back = `/kiinteistot/${input.propertyId}`;
+  const components = tenantComponentsSchema.safeParse(formData.getAll("tenantComponents"));
+  const tenantComponents = components.success ? components.data : [];
+  if (input.role === "tenant" && tenantComponents.length === 0) fail(back, "Valitse käyttösopimukseen ainakin yksi vuokralaisen maksama osa.");
   try {
     await ctx.run(async (tx) => {
       if (input.billed && input.endPrevious) {
         await tx.query(
           `update ml_contracts set ends_on = $3::date - 1
-            where property_id = $1 and organization_id = $2 and billed and starts_on < $3 and (ends_on is null or ends_on >= $3)`,
-          [input.propertyId, ctx.org.organizationId, input.startsOn],
+            where property_id = $1 and organization_id = $2 and role = $4 and billed and starts_on < $3 and (ends_on is null or ends_on >= $3)`,
+          [input.propertyId, ctx.org.organizationId, input.startsOn, input.role],
         );
       }
       const [row] = await tx.query<{ id: string }>(
-        "insert into ml_contracts (organization_id, property_id, customer_id, role, billed, starts_on) values ($1, $2, $3, $4, $5, $6) returning id",
-        [ctx.org.organizationId, input.propertyId, input.customerId, input.role, input.billed, input.startsOn],
+        `insert into ml_contracts (organization_id, property_id, customer_id, role, billed, starts_on, tenant_components)
+         values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+        [ctx.org.organizationId, input.propertyId, input.customerId, input.role, input.billed, input.startsOn,
+          input.role === "tenant" ? tenantComponents : ["usage"]],
       );
       await audit(tx, { organizationId: ctx.org.organizationId, userId: ctx.user.id, action: "contract.create", entity: "ml_contracts", entityId: row.id });
     });
   } catch (err) {
-    if (isExclusionViolation(err)) fail(back, "Kiinteistöllä on jo laskutettava sopimus tälle ajalle. Valitse, että edellinen päätetään.");
+    if (isExclusionViolation(err)) fail(back, "Kiinteistöllä on jo samanlajinen laskutettava sopimus tälle ajalle. Valitse, että edellinen päätetään.");
     throw err;
   }
   revalidatePath(back);

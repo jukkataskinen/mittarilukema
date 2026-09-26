@@ -145,3 +145,13 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 **Asiakkaan lähetysloki (Jukka 26.9.2026).** Asiakkaan sivulla on "Lähetetyt"-loki, josta näkee, mitä asiakkaalle lähetettiin ja mitä kanavaa pitkin. Mukana ovat tiedotteet (sähköposti tai kirje, itse tulostettu tai Postita) ja laskujen viennit Fennoaan (laskukanava ja viennin tila). Loki kootaan lähetyshetken tiedoista: osoite on se, johon tiedote todella lähti, vaikka asiakkaan tiedot olisivat myöhemmin muuttuneet. Uutta tauluja ei tarvittu, koska vastaanottajat ja viennit tallennetaan jo lähetyshetkellä.
 
 **Useampi sähköpostiosoite.** Kärkisen asiakasrekisterissä samassa kentässä voi olla useampi osoite (tuotannossa 11 asiakkaalla). Tiedote lähtee kaikkiin kelvollisiin osoitteisiin, jotta se ei lähde kirjeenä vain siksi, ettei kenttä ole yksi osoite. Fennoa-laskun sähköpostikanava vaatii edelleen yhden osoitteen, ja muut estetään viennissä.
+
+## 2026-09-26 (Käyttöpaikan osapuolet, Jukka)
+
+**Liittymissopimus ja käyttösopimus (0021).** Käyttöpaikka pysyy, osapuolet vaihtuvat. Omistajan kanssa tehdään liittymissopimus (`role = owner`), vuokralaisen kanssa käyttösopimus (`role = tenant`). Käyttösopimukseen merkitään, mitkä laskun osat vuokralainen maksaa (`tenant_components`, oletuksena kulutus). Omistaja maksaa loput. Käyttöpaikalla voi olla samaan aikaan yksi laskutettava sopimus kumpaakin lajia, joten saman jakson lasku voi jakautua kahdelle. Vanhat vuokralaissopimukset saivat migraatiossa kaikki osat, jotta jo laskutettu käytäntö ei muutu.
+
+**Lainan velallinen.** Lainaosuus laskutetaan omistajalta, ellei lainalle ole kirjattu muuta velallista (`debtor_customer_id`). Omistajanvaihdoksessa kysytään, mitä lainalle tapahtuu. Laina peritään myyjältä, kunnes kauppakirja osoittaa sen siirtyneen ostajalle. Myyjälle tehdään silloin oma lainaosuuden lasku.
+
+**Lukema vaaditaan vaihdoksessa, laskutus vaihtuu seuraavan kuun alusta.** Omistajan ja vuokralaisen vaihdoksessa lukema on pakollinen: kulutus jaetaan vaihtopäivän lukemalla. Kuukausimaksut vaihtuvat vaihtoa seuraavan kuun alusta. Toteutuneen kulutuksen laskussa tämä seuraa kuukauden 1. päivästä. Arviolasku laskutetaan jakson ensimmäisenä päivänä voimassa olevilta osapuolilta, joten vaihtokuukausi kuuluu vielä edelliselle.
+
+**Tasaus osapuolten vaihtuessa.** Tasaus laskutetaan jakson lopun osapuolille, ja laskulle tulee huomautus, jos osapuolet vaihtuivat jaksolla. Arvioiden kohdistus maksajittain tehdään, kun ensimmäinen tällainen tapaus tulee vastaan.

@@ -89,6 +89,8 @@ export interface PropertyLoan {
   interestPercent: number;
   /** Kuukauden 1. päivä, jona koko jäljellä oleva saldo peritään. */
   finalMonth: string | null;
+  /** Velallinen, jos eri kuin käyttöpaikan omistaja (laina jäi myyjälle). */
+  debtorCustomerId?: string | null;
 }
 
 export interface BilledEstimate {
@@ -129,6 +131,8 @@ export interface BillingLine {
   /** Rivin arvonlisävero. Verollisella hinnalla johdettu summasta, muuten net × alv (pyöristämättä). */
   vat: number;
   priceIncludesVat: boolean;
+  /** Lainaosuuden rivi: lainan järjestysnumero kiinteistön lainoissa. Laskutetaan lainan velalliselta. */
+  loanIndex?: number;
 }
 
 export interface MeterUsage {
@@ -403,7 +407,7 @@ export function calculateBill(input: BillingInput): BillingResult {
       if (n === 0) continue;
       lines.push(makeLine({ kind: "other_fee", connectionKind: null, description: ch.name, unit: "month" }, n, ch.priceEur, ch.vatPercent, ch.priceIncludesVat));
     }
-    for (const loan of input.loans ?? []) {
+    for (const [loanIndex, loan] of (input.loans ?? []).entries()) {
       if (loan.monthlyAmortization <= 0 && loan.finalMonth === null) {
         issues.push(`Lainaosuudelle (${loan.balance} €) ei ole kuukausierää, joten sitä ei laskutettu. Tarkista.`);
         continue;
@@ -411,11 +415,11 @@ export function calculateBill(input: BillingInput): BillingResult {
       const { amortization, payoff, interest } = loanForPeriod(loan, months);
       // Loppuerä omana rivinään, kuten vanhassa järjestelmässä: kuukausierä ja jäljellä oleva saldo.
       for (const amount of [amortization, payoff].filter((x) => x > 0)) {
-        lines.push(makeLine({ kind: "other_fee", connectionKind: null, description: "Pääoman lyhennys", unit: "month" }, 1, amount, 0, false));
+        lines.push({ ...makeLine({ kind: "other_fee", connectionKind: null, description: "Pääoman lyhennys", unit: "month" }, 1, amount, 0, false), loanIndex });
       }
       if (interest > 0) {
         const rate = String(loan.interestPercent).replace(".", ",");
-        lines.push(makeLine({ kind: "other_fee", connectionKind: null, description: `Korko ${rate} %`, unit: "month" }, 1, interest, 0, false));
+        lines.push({ ...makeLine({ kind: "other_fee", connectionKind: null, description: `Korko ${rate} %`, unit: "month" }, 1, interest, 0, false), loanIndex });
       }
     }
   }

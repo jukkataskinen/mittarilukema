@@ -67,7 +67,7 @@ describe("loppulasku omistajanvaihdoksessa", () => {
       [a.customer, "2025-09-30", "2026-01-15", "23.000", []],
       [newCustomer, "2026-01-15", "2026-03-31", "30.000", []],
     ]);
-    expect(inv[0].info).toMatch(/^Laskutusjakso 1\.10\.2025 - 15\.1\.2026 \(maksajan vaihdos\)\./);
+    expect(inv[0].info).toMatch(/^Laskutusjakso 1\.10\.2025 - 15\.1\.2026 \(osapuolten vaihdos\)\./);
     const fees = await db.asUser(a.staff.sub, (tx) =>
       tx.query<{ quantity: string }>(
         `select l.quantity::text from ml_invoice_lines l join ml_invoices i on i.id = l.invoice_id

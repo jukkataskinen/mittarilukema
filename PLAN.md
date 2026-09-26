@@ -96,6 +96,13 @@ Riskit: varmuuskopio on kriittisellä polulla; tekstiviestinumeron siirto voi vi
 - [x] Kirjeet Postitan kautta: kirjepohja Postitan mittoihin, lataus vahvistamattomana, vahvistus ja peruutus (0017)
 - [ ] Postita-tilin käyttöönotto (BLOCKERS 16)
 
+### Käyttöpaikan osapuolet ja mittarit (Jukka 26.9.2026)
+- [x] Vaihe 1: liittymissopimus (omistaja) ja käyttösopimus (vuokralainen), vuokralaisen maksamat osat, lainan velallinen, käyttöpaikan tapahtumat (0021); laskutusajo jakaa rivit osapuolille
+- [ ] Vaihe 2: omistajanvaihdos ja vuokralaisen muutto ohjattuna toimintona: pakollinen lukema, lainan kohtalo, loppulasku, lainat kiinteistön sivulla
+- [ ] Vaihe 3: mittarinvaihto (irrotus- ja asennuslukema) ja etäluettavien vaihtokampanja joukkotuontina
+- [ ] Vaihe 4: käyttöpaikan aikajana (sopimukset, mittarit, lukemat, tapahtumat)
+- [ ] Vaihe 5: asiakkaan muutosilmoitus (lomake ja QR)
+
 ### Käyttöönotto (maalis–huhtikuu 2027)
 - [ ] Syyskuun 2026 laskujen uudelleenlaskenta ja vertailu (tammikuu 2027)
 - [ ] Fennoan testiympäristön pääsy (ennen joulukuuta)

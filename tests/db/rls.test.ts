@@ -23,6 +23,7 @@ const TABLES = [
   "ml_property_charges",
   "ml_property_loans",
   "ml_legacy_billed_estimates",
+  "ml_property_events",
 ];
 // Laskutusajon taulut testataan tiedostossa billing-run.test.ts.
 
@@ -60,6 +61,10 @@ beforeAll(async () => {
         "insert into ml_legacy_billed_estimates (organization_id, property_id, month, connection_kind, m3, net_eur, gross_eur, source) values ($1, $2, '2026-01-01', 'water', 2, 4.1, 5.14, 'invoice')",
         [org.id, org.property],
       );
+      await tx.query("insert into ml_property_events (organization_id, property_id, kind, event_date) values ($1, $2, 'meter_change', '2026-05-01')", [
+        org.id,
+        org.property,
+      ]);
     }
   });
 });
@@ -159,15 +164,30 @@ describe("roolit", () => {
 });
 
 describe("tietomallin säännöt", () => {
-  it("kiinteistöllä on kerrallaan yksi laskutettava sopimus", async () => {
+  it("kiinteistöllä on kerrallaan yksi laskutettava liittymissopimus ja yksi käyttösopimus", async () => {
     await expect(
       db.asService((tx) =>
         tx.query(
-          "insert into ml_contracts (organization_id, property_id, customer_id, role, starts_on) values ($1, $2, $3, 'tenant', '2026-01-01')",
+          "insert into ml_contracts (organization_id, property_id, customer_id, role, starts_on) values ($1, $2, $3, 'owner', '2026-01-01')",
           [a.id, a.property, a.customer],
         ),
       ),
     ).rejects.toThrow(/ml_contracts_one_billed/);
+    // Käyttösopimus omistajan rinnalle käy, mutta toista päällekkäistä ei.
+    await expect(
+      db.asService(async (tx) => {
+        await tx.query(
+          "insert into ml_contracts (organization_id, property_id, customer_id, role, starts_on) values ($1, $2, $3, 'tenant', '2026-01-01'), ($1, $2, $3, 'tenant', '2026-06-01')",
+          [a.id, a.property, a.customer],
+        );
+      }),
+    ).rejects.toThrow(/ml_contracts_one_billed/);
+    await db.asService((tx) =>
+      tx.query(
+        "insert into ml_contracts (organization_id, property_id, customer_id, role, starts_on, ends_on) values ($1, $2, $3, 'tenant', '2026-01-01', '2026-01-31')",
+        [a.id, a.property, a.customer],
+      ),
+    );
   });
 
   it("päättynyt sopimus ja uusi sopimus voivat olla peräkkäin", async () => {
