@@ -6,6 +6,7 @@ import { NavLink } from "./NavLink";
 import { STAFF_NAV, STAFF_NAV_ORG, type NavItem } from "@/config/nav";
 import { ROLE_LABEL, type StaffContext } from "@/lib/auth/current-user";
 import { OrgSwitcher } from "./OrgSwitcher";
+import { HelpLink } from "./HelpLink";
 
 /**
  * Henkilökunnan kehys eRapun mallin mukaan: sivupalkki työpöydällä,
@@ -75,7 +76,13 @@ export function StaffShell({ ctx, children }: { ctx: StaffContext; children: Rea
           </a>
         </div>
       </aside>
-      <main className="mx-auto w-full min-w-0 max-w-[var(--container-wide)] px-5 py-8 sm:px-8">{children}</main>
+      <main className="mx-auto w-full min-w-0 max-w-[var(--container-wide)] px-5 py-8 sm:px-8">
+        {/* Jokaisella sivulla linkki sivun toiminnon ohjeeseen. */}
+        <div className="no-print -mt-4 mb-2 flex justify-end">
+          <HelpLink />
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

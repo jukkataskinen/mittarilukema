@@ -33,9 +33,41 @@ export interface HelpTopic {
   upcoming?: boolean;
 }
 
-export const HELP_GROUPS = ["Rekisteri ja käyttöpaikat", "Lukemat", "Laskutus", "Viestintä", "Hallinta ja tietoturva"];
+export const HELP_GROUPS = ["Aloitus", "Rekisteri ja käyttöpaikat", "Lukemat", "Laskutus", "Viestintä", "Hallinta ja tietoturva"];
 
 export const HELP_TOPICS: HelpTopic[] = [
+  {
+    slug: "tyopoyta",
+    group: "Aloitus",
+    icon: "home",
+    title: "Työpöytä",
+    summary: "Työpöydältä näet heti, mikä odottaa sinua tänään.",
+    highlights: ["Tarkistettavat lukemat", "Avoimet lukukierrokset", "Uudet muutosilmoitukset"],
+    appPath: "/tyopoyta",
+    appLabel: "Työpöytä",
+    sections: [
+      {
+        title: "Mitä työpöydällä on",
+        bullets: [
+          "Ylhäällä on laitoksen nimi ja laskutustapa.",
+          "Luvut kertovat, montako kiinteistöä, asiakasta ja mittaria rekisterissä on.",
+          "Tarkistettavat lukemat ovat lukemia, jotka poikkeavat aiemmista. Hyväksy tai hylkää ne.",
+          "Avoimet lukukierrokset näkyvät omana listanaan.",
+          "Jos asiakkaat ovat lähettäneet muutosilmoituksia, näet niiden määrän ja linkin.",
+        ],
+      },
+      {
+        title: "Näin pääset alkuun",
+        steps: [
+          "Katso ensin, onko tarkistettavia lukemia tai uusia ilmoituksia.",
+          "Hoida ne. Klikkaa lukua tai linkkiä, niin pääset suoraan oikealle sivulle.",
+          "Valitse sitten työ vasemmalta valikosta.",
+        ],
+      },
+    ],
+    tips: ["Jokaisen sivun oikeassa yläkulmassa on Ohje-linkki. Se avaa juuri sen sivun ohjeen."],
+    related: ["lukemat", "muutosilmoitus"],
+  },
   {
     slug: "rekisteri",
     group: "Rekisteri ja käyttöpaikat",
@@ -293,6 +325,48 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["laskukanava", "omistajanvaihdos", "lukemat"],
   },
   {
+    slug: "hinnasto",
+    group: "Laskutus",
+    icon: "coins",
+    title: "Hinnasto",
+    summary: "Hinnastossa ovat laitoksen maksut. Laskut lasketaan näillä hinnoilla.",
+    highlights: ["Käyttömaksut ja perusmaksut", "Hinta voi olla eri alueilla eri", "Uuden hinnan voi lisätä etukäteen"],
+    appPath: "/hinnasto",
+    appLabel: "Hinnasto",
+    sections: [
+      {
+        title: "Mitä hinnastossa on",
+        bullets: [
+          "Käyttömaksu on hinta kuutiolta (€/m³).",
+          "Perusmaksu on kiinteä maksu kuukaudelta tai vuodelta.",
+          "Muita lajeja ovat lisäperusmaksu, lainaosuus ja muu maksu.",
+          "Jokaisella hinnalla on alkupäivä. Loppupäivä on vapaaehtoinen.",
+        ],
+      },
+      {
+        title: "Uuden hinnan lisääminen",
+        steps: [
+          "Avaa Hinnasto.",
+          "Valitse maksulaji ja kirjoita nimi, joka näkyy laskulla.",
+          "Valitse liittymä (vesi tai jätevesi) ja tarvittaessa alue.",
+          "Anna hinta ilman arvonlisäveroa, yksikkö ja veroprosentti.",
+          "Anna päivä, josta hinta alkaa.",
+          "Tallenna.",
+        ],
+      },
+      {
+        title: "Kun hinta muuttuu",
+        steps: [
+          "Lisää uusi hinta, joka alkaa muutospäivänä.",
+          "Anna vanhalle hinnalle loppupäivä: muutosta edeltävä päivä.",
+        ],
+        text: "Voit tehdä muutoksen jo etukäteen. Laskut käyttävät oikeaa hintaa päivämäärän mukaan.",
+      },
+    ],
+    tips: ["Saman maksun hinnat eivät voi olla voimassa yhtä aikaa. Jos tallennus ei onnistu, tarkista päivämäärät."],
+    related: ["laskutus"],
+  },
+  {
     slug: "laskukanava",
     group: "Laskutus",
     icon: "split",
@@ -390,6 +464,49 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["tiedotteet", "laskukanava"],
   },
   {
+    slug: "asetukset",
+    group: "Hallinta ja tietoturva",
+    icon: "gear",
+    title: "Asetukset",
+    summary: "Asetuksissa päätetään laitoksen yhteiset tiedot. Asetukset näkee vain pääkäyttäjä.",
+    highlights: ["Laskutustapa ja laskutuskuukaudet", "Yhteystiedot tiedotteisiin", "Alueet ja käyttäjät"],
+    appPath: "/asetukset",
+    appLabel: "Asetukset",
+    sections: [
+      {
+        title: "Laskutus",
+        bullets: [
+          "Valitse laskutustapa: toteutunut kulutus tai arviolasku.",
+          "Toteutuneessa kulutuksessa valitaan kuukaudet, joina laskutetaan.",
+          "Arviolaskussa valitaan kuukausi, jona tasauslasku tehdään.",
+          "Yksittäiselle kiinteistölle voi valita eri laskutustavan kiinteistön tiedoissa.",
+        ],
+      },
+      {
+        title: "Yhteystiedot",
+        text: "Sähköposti, puhelin ja postiosoite näkyvät tiedotteiden allekirjoituksessa. Sähköpostiin tulee myös ilmoitus uusista muutosilmoituksista.",
+      },
+      {
+        title: "Tekstiviestinumero",
+        text: "Numero, johon asiakkaat lähettävät lukemia tekstiviestillä.",
+      },
+      {
+        title: "Alueet",
+        text: "Alueilla kiinteistöt jaetaan ryhmiin, esimerkiksi kylittäin. Aluetta käytetään lukulistoissa, tiedotteissa ja laskutuksessa.",
+      },
+      {
+        title: "Käyttäjät",
+        steps: [
+          "Kirjoita uuden käyttäjän sähköposti ja nimi.",
+          "Valitse rooli: pääkäyttäjä, toimisto tai mittarinlukija.",
+          "Tallenna. Käyttäjä kirjautuu samalla sähköpostiosoitteella.",
+        ],
+      },
+    ],
+    tips: ["Alimpana näkyvät viimeisimmät muutokset: kuka teki mitä ja milloin."],
+    related: ["kayttajat"],
+  },
+  {
     slug: "kayttajat",
     group: "Hallinta ja tietoturva",
     icon: "shield",
@@ -468,6 +585,16 @@ export const HELP_TOPICS: HelpTopic[] = [
     related: ["omistajanvaihdos", "aikajana"],
   },
 ];
+
+/** Ohjeen osion ankkuri otsikosta: "Kun hinta muuttuu" → "kun-hinta-muuttuu". */
+export function sectionId(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[äå]/g, "a")
+    .replace(/ö/g, "o")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 export function helpTopic(slug: string) {
   return HELP_TOPICS.find((t) => t.slug === slug) ?? null;

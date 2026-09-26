@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { NavIcon } from "@/components/NavIcon";
-import { HELP_TOPICS, helpTopic } from "@/lib/help/topics";
+import { HELP_TOPICS, helpTopic, sectionId } from "@/lib/help/topics";
 
 export function generateStaticParams() {
   return HELP_TOPICS.map((t) => ({ aihe: t.slug }));
@@ -45,7 +45,7 @@ export default async function HelpTopicPage({ params }: { params: Promise<{ aihe
         </ul>
 
         {t.sections.map((s) => (
-          <section key={s.title} className="mt-10">
+          <section key={s.title} id={sectionId(s.title)} className="mt-10 scroll-mt-6">
             <h2 className="text-xl">{s.title}</h2>
             {s.text ? <p className="mt-3 leading-relaxed text-ink/80">{s.text}</p> : null}
             {s.steps ? (

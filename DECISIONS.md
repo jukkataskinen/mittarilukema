@@ -190,3 +190,5 @@ Vastaanottajat ja osoitteet lukitaan lähetyksen alkaessa, jolloin jälkikäteen
 - Ilmoitukset näkevät vain pääkäyttäjä ja toimisto (RLS), eivät mittarinlukijat.
 - Toimiston sähköpostiin lähtee ilmoituksesta vain laji ja linkki, ei henkilötietoja.
 - QR-koodi tehdään qrcode-kirjastolla (npm, vakiintunut) PNG- ja SVG-muodossa. Se ei tuonut uusia haavoittuvuuksia npm auditiin.
+
+**Ohjelinkki jokaiselle sivulle (Jukka 26.9.2026).** Henkilökunnan kehyksen oikeassa yläkulmassa on Ohje-linkki, joka avaa sivun toiminnon ohjeen uuteen välilehteen, jotta kesken oleva työ ei katoa. Linkki vie ohjeen oikeaan osioon, kun sivu vastaa osiota (esimerkiksi vuokralaisen vaihdos). Sivujen ja ohjeiden kartta on yhdessä tiedostossa (`src/lib/help/routes.ts`). Testi käy läpi kaikki henkilökunnan sivut ja kaatuu, jos jollekin puuttuu ohje, joten myös tulevat toiminnot saavat ohjelinkin. Samalla lisättiin selkokieliset ohjeet työpöydälle, hinnastolle ja asetuksille.
